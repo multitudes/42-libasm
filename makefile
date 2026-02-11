@@ -35,7 +35,7 @@ fclean: clean
 
 re: fclean all
 
-test: all main.c
+test: bonus main.c
 	gcc main.c -L$(ASM_DIR) -lasm -o test
 	./test
 

@@ -222,3 +222,4 @@ ft_atoi_base:
 	pop rcx
 	pop rbx
 	ret
+section .note.GNU-stack noalloc noexec nowrite
