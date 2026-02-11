@@ -23,14 +23,14 @@ jobs:
             - name: Verify NASM installation
               run: nasm --version
 
-            - name: Build project
-              run: make
-
-            - name: Build and run tests
-              run: make test
+            - name: Clean build
+              run: make fclean
 
             - name: Build with bonus functions
               run: make bonus
 
-            - name: Clean build
+            - name: Build and run tests
+              run: make test
+
+            - name: Clean after tests
               run: make fclean
