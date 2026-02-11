@@ -43,3 +43,4 @@ ft_strcmp:
 	sub	eax, ecx
 .ret:
 	ret
+section .note.GNU-stack noalloc noexec nowrite
