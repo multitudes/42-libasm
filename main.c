@@ -135,26 +135,26 @@ void test_strdup(void) {
 }
 
 void test_putnbr_base(void) {
-  printf("\n=== FT_PUTNBR_BASE TESTS ===\n");
+  printf("\n=== ft_atoi_base TESTS ===\n");
 
   printf("Test 1: Decimal base\n");
   printf("  Expected: 42, Got: ");
-  ft_putnbr_base(42, "0123456789");
+  ft_atoi_base(42, "0123456789");
   printf("\n");
 
   printf("Test 2: Hexadecimal base (uppercase)\n");
   printf("  Expected: FF, Got: ");
-  ft_putnbr_base(255, "0123456789ABCDEF");
+  ft_atoi_base(255, "0123456789ABCDEF");
   printf("\n");
 
   printf("Test 3: Binary base\n");
   printf("  Expected: 101010, Got: ");
-  ft_putnbr_base(42, "01");
+  ft_atoi_base(42, "01");
   printf("\n");
 
   printf("Test 4: Negative number (decimal)\n");
   printf("  Expected: -42, Got: ");
-  ft_putnbr_base(-42, "0123456789");
+  ft_atoi_base(-42, "0123456789");
   printf("\n");
 }
 

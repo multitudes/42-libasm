@@ -9,7 +9,7 @@ SRCS_BASE = $(addprefix $(ASM_DIR)/, ft_strlen.s ft_write.s ft_read.s ft_strcpy.
 OBJS_BASE = $(SRCS_BASE:.s=.o)
 
 # Bonus functions
-SRCS_BONUS = $(addprefix $(ASM_DIR)/, ft_putnbr_base.s ft_list_push_front.s ft_list_size.s ft_list_sort.s ft_list_remove_if.s)
+SRCS_BONUS = $(addprefix $(ASM_DIR)/, ft_atoi_base.s ft_list_push_front.s ft_list_size.s ft_list_sort.s ft_list_remove_if.s)
 OBJS_BONUS = $(SRCS_BONUS:.s=.o)
 
 # By default, only use base
