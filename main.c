@@ -134,30 +134,6 @@ void test_strdup(void) {
   free(dup4);
 }
 
-void test_putnbr_base(void) {
-  printf("\n=== ft_atoi_base TESTS ===\n");
-
-  printf("Test 1: Decimal base\n");
-  printf("  Expected: 42, Got: ");
-  ft_atoi_base(42, "0123456789");
-  printf("\n");
-
-  printf("Test 2: Hexadecimal base (uppercase)\n");
-  printf("  Expected: FF, Got: ");
-  ft_atoi_base(255, "0123456789ABCDEF");
-  printf("\n");
-
-  printf("Test 3: Binary base\n");
-  printf("  Expected: 101010, Got: ");
-  ft_atoi_base(42, "01");
-  printf("\n");
-
-  printf("Test 4: Negative number (decimal)\n");
-  printf("  Expected: -42, Got: ");
-  ft_atoi_base(-42, "0123456789");
-  printf("\n");
-}
-
 void test_atoi_base(void) {
   printf("\n=== FT_ATOI_BASE TESTS ===\n");
 
@@ -193,15 +169,38 @@ void test_atoi_base(void) {
   int num8 = ft_atoi_base("42", "0");
   printf("  Expected: 0 (invalid base), Got: %d\n", num8);
 }
-int empty_size = ft_list_size(NULL);
-printf("  Expected: 0, Got: %d\n", empty_size);
 
-// Cleanup
-while (list) {
-  t_list *temp = list;
-  list = list->next;
-  free(temp);
-}
+void test_list_functions(void) {
+  printf("\n=== LIST FUNCTION TESTS ===\n");
+
+  printf("Test 1: List creation and push_front\n");
+  t_list *list = NULL;
+  ft_list_push_front(&list, "Node 3");
+  ft_list_push_front(&list, "Node 2");
+  ft_list_push_front(&list, "Node 1");
+
+  printf("  List contents:\n");
+  t_list *current = list;
+  int count = 0;
+  while (current) {
+    printf("    %d: %s\n", count++, (char *)current->data);
+    current = current->next;
+  }
+
+  printf("Test 2: List size\n");
+  int size = ft_list_size(list);
+  printf("  Expected: 3, Got: %d\n", size);
+
+  printf("Test 3: List size with NULL\n");
+  int empty_size = ft_list_size(NULL);
+  printf("  Expected: 0, Got: %d\n", empty_size);
+
+  // Cleanup
+  while (list) {
+    t_list *temp = list;
+    list = list->next;
+    free(temp);
+  }
 }
 
 int main(void) {
@@ -215,7 +214,6 @@ int main(void) {
   test_strcmp();
   test_strdup();
   test_atoi_base();
-  test_putnbr_base();
   test_list_functions();
 
   printf("\n################################\n");
