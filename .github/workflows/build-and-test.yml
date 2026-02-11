@@ -1,0 +1,36 @@
+name: Build and Test Assembly
+
+on:
+    push:
+        branches: [main, master]
+    pull_request:
+        branches: [main, master]
+    workflow_dispatch:
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install NASM
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y nasm
+
+            - name: Verify NASM installation
+              run: nasm --version
+
+            - name: Build project
+              run: make
+
+            - name: Build and run tests
+              run: make test
+
+            - name: Build with bonus functions
+              run: make bonus
+
+            - name: Clean build
+              run: make fclean
