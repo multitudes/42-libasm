@@ -1,5 +1,5 @@
 section	.text
-global	write  
+global	ft_write  
 
 ; ft_write(int rdi, void *rsi, size_t rdx)
 ; ------------------------------------------

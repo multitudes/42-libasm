@@ -1,6 +1,7 @@
 section .text
-global	strdup                       
+global	ft_strdup                       
 extern malloc 
+extern __errno_location 
 
 
 ; char *strdup(const char *s);
@@ -11,7 +12,7 @@ extern malloc
 ;   rdi: pointer to the source string (s)
 ; Returns: pointer to the duplicated string (or NULL if insufficient memory)
 
-strdup:                              
+ft_strdup:                              
 ; push the register on the stack, r15, r14 and rbx are callee saved registers
 ; their value will be later reinstated before returning.
 	push	r15 
@@ -34,27 +35,35 @@ strdup:
 	mov	    rdi, rbx
 	call	malloc wrt ..plt
 	test	rax, rax
-	je	    .exit_error
+	je	    .malloc_error       ; Jump to error handling if malloc failed
 
-; before copying save the source string pointer (in r14)
+; Save the allocated pointer (we'll return this)
 	mov	r14, rax
 ; If rbx is zero, there is nothing to copy, 
 	test	rbx, rbx
-	je	    .ret
+	je	    .prepare_ret
 
 ; here I could call memcpy, but I will do it manually
+; Use rbx as destination counter
+    xor rbx, rbx
 .loop:
-    mov     cl, [r15]    ; Load byte from source
-    mov     [r14], cl    ; Store byte to destination
-    inc     r15          ; Advance source pointer
-    inc     r14          ; Advance destination pointer
-    test    cl, cl      ; Check for null terminator
-    jne     .loop        ; Repeat if not null
-    jmp    .ret
+    mov     cl, [r15 + rbx]  ; Load byte from source
+    mov     [r14 + rbx], cl  ; Store byte to destination
+    test    cl, cl           ; Check for null terminator
+    je      .prepare_ret     ; Exit if null terminator copied
+    inc     rbx              ; Advance to next byte
+    jmp     .loop            ; Repeat
 
-.exit_error:
-	xor	r14d, r14d
-    mov rax, r14
+.prepare_ret:
+    mov     rax, r14         ; Return the allocated string pointer
+    jmp     .ret
+
+.malloc_error:
+    ; Set errno to ENOMEM (12)
+    call    __errno_location wrt ..plt
+    mov     dword [rax], 12  ; ENOMEM = 12
+    xor     eax, eax        ; Return NULL
+	jmp	    .ret
 
 ; Here I reinstate the saved registers and return
 .ret:

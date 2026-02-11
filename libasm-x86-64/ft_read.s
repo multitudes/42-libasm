@@ -1,5 +1,5 @@
 section	.text
-global	read  
+global	ft_read  
 
 extern __errno_location
 
@@ -17,7 +17,7 @@ extern __errno_location
 ; we must declare them as external and specify that the call will be routed
 ; through the Procedure Linkage Table (PLT).
 
-read:               
+ft_read:               
 	mov	rax, 0                  ; syscall number for read
 	syscall
     cmp rax, 0                  ; check return value
