@@ -1,5 +1,5 @@
 section	.text
-global	strcpy                          
+global ft_strcpy                       
 
 ; strcpy(char *dest, const char *src)
 ; ------------------------------------------
@@ -10,7 +10,7 @@ global	strcpy
 ;   rsi: pointer to source string (src)
 ; Returns: pointer to destination buffer (dest) in rax
 
-my_strcpy:
+ft_strcpy:
     mov rax, rdi        ; Save original destination pointer for the return value.
 
 .loop:

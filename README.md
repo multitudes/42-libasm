@@ -213,6 +213,76 @@ NASM (Netwide Assembler) is a standalone assembler for x86 and x86-64 architectu
 - NASM: explicit section/global declarations, strict syntax
 - GCC/GAS: AT&T syntax, more high-level features and debugging info
 
+## cmp
+
+It sets **multiple flags** in the FLAGS register:
+
+```
+cmp byte [rdi + rax], 0
+```
+
+This does: `[rdi + rax] - 0` and sets:
+
+- **ZF** (Zero Flag) = 1 if result is zero (operands are equal)
+- **SF** (Sign Flag) = 1 if result is negative
+- **CF** (Carry Flag) = 1 if unsigned underflow
+- **OF** (Overflow Flag) = 1 if signed overflow
+
+Then `je` (jump if equal) checks the **ZF flag**:
+
+- If ZF = 1 → the byte equals 0 → jump to `.end`
+- If ZF = 0 → the byte is not 0 → continue to `inc rax`
+
+So `cmp` sets multiple CPU flags based on the arithmetic result, and then conditional jumps like `je`, `jg`, `jl`, etc. check different combinations of these flags.
+
+
+## strcpy
+
+Here you will see `cl`. what is cl?
+
+Yes! `cl` is an 8-bit (1 byte) register. It's the **lower byte** of the `rcx` register.
+
+x86-64 register hierarchy for `rcx`:
+```
+rcx  [63:0]  - full 64-bit register
+ecx  [31:0]  - lower 32 bits
+cx   [15:0]  - lower 16 bits
+cl   [7:0]   - lower 8 bits (byte) ← This is what you're using
+ch   [15:8]  - second byte (bits 8-15)
+```
+
+Since `strcpy` copies one **byte** (character) at a time, using `cl` is correct and efficient. You could also use:
+
+- `byte [rsi]` with temporary register
+- Other 8-bit registers like `al`, `bl`, `dl`
+
+
+**No**, writing to `cl` does **NOT** zero the upper bits of `rcx`. Only the lower 8 bits are modified.
+
+Here's the x86-64 behavior:
+
+**8-bit/16-bit registers** - upper bits unchanged:
+```asm
+mov rcx, 0x123456789ABCDEF0
+mov cl, 0x42              ; rcx = 0x123456789ABCDE42 (only lower 8 bits changed)
+mov cx, 0x1234            ; rcx = 0x123456789ABC1234 (only lower 16 bits changed)
+```
+
+**32-bit registers** - upper 32 bits are zeroed:
+```asm
+mov rcx, 0x123456789ABCDEF0
+mov ecx, 0x42             ; rcx = 0x0000000000000042 (upper 32 bits zeroed!)
+```
+
+In your `ft_strcpy`, this doesn't matter because:
+
+1. You only use `cl` to temporarily hold a byte
+2. You immediately write it to memory
+3. You don't rely on the upper bits of `rcx`
+
+But it's important to know for other code where you might care about register contents!
+
+
 ## Linking and Testing
 
 To compile and link your assembly code:
