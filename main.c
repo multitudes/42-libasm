@@ -21,7 +21,7 @@ int main() {
 
   const char *testStr = "Hello, World!";
   size_t len = ft_strlen(testStr);
-  printf("Length of \"%%s\" is %%zu\\n", testStr, len);
+  printf("Length of \"%s\" is %zu\n", testStr, len);
   len = ft_strlen("");
   printf("Length of empty string is %zu\n", len);
 
@@ -42,7 +42,7 @@ int main() {
   printf("----- MY_WRITE -----\n");
 
   ft_write(1, buffer, bytesRead); // Write to standard output
-  ft_write(1, "\\n", 1);
+  ft_write(1, "\n", 1);
   close(fd);
 
   printf("----- MY_my_strcpy -----\n");
@@ -69,7 +69,7 @@ int main() {
   printf("----- MY_STRDUP -----\n");
   char *res;
   res = ft_strdup("Hello, World!");
-  printf("Duplicated string: %%s\\n", res);
+  printf("Duplicated string: %s\n", res);
   free(res);
   // res = ft_strdup(NULL);
   // printf("Duplicated NULL string: %%s\\n", res);
@@ -111,7 +111,7 @@ int main() {
   }
   printf("----- MY_LIST_SIZE -----\n");
   int size = ft_list_size(list);
-  printf("List size: %%d\\n", size);
+  printf("List size: %d\n", size);
   size = ft_list_size(NULL);
   printf("Size of NULL list: %d\n", size);
 
