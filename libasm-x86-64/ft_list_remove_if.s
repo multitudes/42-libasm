@@ -1,5 +1,5 @@
 section	.text
-global	list_remove_if    
+global	ft_list_remove_if    
 
 extern free
 
@@ -16,7 +16,7 @@ extern free
 ; our function must preserve their values if you use them
 
 
-list_remove_if:                      
+ft_list_remove_if:                      
 	push	rbp
 	push	r15
 	push	r14

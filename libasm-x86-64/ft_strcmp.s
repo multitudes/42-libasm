@@ -1,5 +1,5 @@
 section	.text
-global	ft_strcpy            
+global	ft_strcmp            
 
 ; The orig strcmp(const char *s1, const char *s2)
 ; ------------------------------------------

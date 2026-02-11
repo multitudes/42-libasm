@@ -1,4 +1,5 @@
 #include "libasm.h"
+#include "libasm_bonus.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,8 +7,9 @@
 #include <unistd.h>
 
 /**
- * If I pass strings as data which have not malloqued then i pass a no op free
- * function If I pass malloced strings then I pass free as free function
+ * If I pass strings as data which have not malloqued then i pass a no op
+ * free function If I pass malloced strings then I pass free as free
+ * function
  */
 void free_fct(void *ptr) {
   // Do nothing - string literals don't need freeing
@@ -15,12 +17,12 @@ void free_fct(void *ptr) {
 }
 
 int main() {
-  printf("----- MY_STRLEN -----\n");
+  printf("----- FT_STRLEN -----\n");
 
   const char *testStr = "Hello, World!";
-  size_t len = strlen(testStr);
-  printf("Length of \"%s\" is %zu\n", testStr, len);
-  len = strlen("");
+  size_t len = ft_strlen(testStr);
+  printf("Length of \"%%s\" is %%zu\\n", testStr, len);
+  len = ft_strlen("");
   printf("Length of empty string is %zu\n", len);
 
   printf("----- MY_READ -----\n");
@@ -30,7 +32,7 @@ int main() {
     return 1;
   }
   char buffer[100];
-  ssize_t bytesRead = read(fd, buffer, 4);
+  ssize_t bytesRead = ft_read(fd, buffer, 4);
   if (bytesRead == -1) {
     perror("Error reading file");
     close(fd);
@@ -39,8 +41,8 @@ int main() {
   printf("Bytes read: %zd\n", bytesRead);
   printf("----- MY_WRITE -----\n");
 
-  write(1, buffer, bytesRead); // Write to standard output
-  write(1, "\n", 1);
+  ft_write(1, buffer, bytesRead); // Write to standard output
+  ft_write(1, "\\n", 1);
   close(fd);
 
   printf("----- MY_my_strcpy -----\n");
@@ -52,7 +54,7 @@ int main() {
   printf("----- MY_STRCMP -----\n");
   char *s1 = "abcde";
   char *s2 = "abcdf";
-  int cmpResult = strcmp(s1, s2);
+  int cmpResult = ft_strcmp(s1, s2);
   if (cmpResult < 0) {
     printf("\"%s\" is less than \"%s\"\n", s1, s2);
   } else if (cmpResult > 0) {
@@ -60,19 +62,19 @@ int main() {
   } else {
     printf("\"%s\" is equal to \"%s\"\n", s1, s2);
   }
-  // int fail = strcmp(NULL, "NULL");
-  int fail = strcmp(NULL, NULL);
+  // int fail = ft_strcmp(NULL, "NULL");
+  int fail = ft_strcmp(NULL, NULL);
   printf("fail is %d\n", fail);
 
   printf("----- MY_STRDUP -----\n");
   char *res;
-  res = strdup("Hello, World!");
-  printf("Duplicated string: %s\n", res);
+  res = ft_strdup("Hello, World!");
+  printf("Duplicated string: %%s\\n", res);
   free(res);
-  // res = strdup(NULL);
-  // printf("Duplicated NULL string: %s\n", res);
+  // res = ft_strdup(NULL);
+  // printf("Duplicated NULL string: %%s\\n", res);
 
-  res = strdup("Welcome to 42 Berlin !!!");
+  res = ft_strdup("Welcome to 42 Berlin !!!");
   printf("Duplicated string: %s\n", res);
   free(res);
   // res = strdup(NULL);
@@ -97,20 +99,20 @@ int main() {
 
   printf("----- MY_LIST_PUSH_FRONT -----\n");
   t_list *list = NULL;
-  list_push_front(&list, "Node FAIL");
+  ft_list_push_front(&list, "Node FAIL");
   *list = (t_list){.data = "Node start", .next = NULL};
-  list_push_front(&list, "Node 1");
-  list_push_front(&list, "Node 2");
-  list_push_front(&list, "Node 3");
+  ft_list_push_front(&list, "Node 1");
+  ft_list_push_front(&list, "Node 2");
+  ft_list_push_front(&list, "Node 3");
   t_list *current = list;
   while (current) {
     printf("Node data: %s\n", (char *)current->data);
     current = current->next;
   }
   printf("----- MY_LIST_SIZE -----\n");
-  int size = list_size(list);
-  printf("List size: %d\n", size);
-  size = list_size(NULL);
+  int size = ft_list_size(list);
+  printf("List size: %%d\\n", size);
+  size = ft_list_size(NULL);
   printf("Size of NULL list: %d\n", size);
 
   // printf("----- MY_LIST_SORT -----\n");

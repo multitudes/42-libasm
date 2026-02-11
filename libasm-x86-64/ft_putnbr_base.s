@@ -1,5 +1,5 @@
 section .text
-global putnbr_base
+global ft_putnbr_base
 
 extern write
 
@@ -131,7 +131,7 @@ get_num_and_base:
 
 
 
-putnbr_base:
+ft_putnbr_base:
 	push	r12
 	push	rbp
 	push	rbx
