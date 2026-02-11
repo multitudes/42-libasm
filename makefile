@@ -5,7 +5,7 @@ ASM_FLAGS = -f elf64
 NAME = $(ASM_DIR)/libasm.a
 
 # Mandatory functions
-SRCS_BASE = $(addprefix $(ASM_DIR)/, ft_strlen.s ft_write.s ft_read.s ft_strcpy.s ft_strdup.s ft_strcmp.s)
+SRCS_BASE = $(addprefix $(ASM_DIR)/, ft_strlen.s ft_write.s ft_read.s ft_strcpy.s ft_strdup.s ft_strcmp.s ft_atoi_base.s)
 OBJS_BASE = $(SRCS_BASE:.s=.o)
 
 # Bonus functions
