@@ -276,6 +276,9 @@ Then `je` (jump if equal) checks the **ZF flag**:
 
 So `cmp` sets multiple CPU flags based on the arithmetic result, and then conditional jumps like `je`, `jg`, `jl`, etc. check different combinations of these flags.
 
+The leaq instruction does not alter any condition codes, since it is intended
+to be used in address computations.
+
 ## strcpy
 
 Here you will see `cl`. what is cl?
@@ -385,6 +388,226 @@ mov qword 8[rax], rdx   ; store 64-bit next pointer
 ```
 
 The progression is: `byte` → `word` → `dword` → `qword` → `tword` → `oword` → `yword` → `zword`. 
+
+## Operand Addressing Modes in NASM Intel Syntax
+
+From the "Computer Systems" book, here are the x86-64 operand addressing modes in NASM Intel syntax (translated from AT&T):
+
+| Type | NASM Intel Form | Example | Description |
+|------|-----------------|---------|-------------|
+| Immediate | `Imm` | `mov rax, 100` | Constant value (AT&T: `$Imm`) |
+| Register | `reg` | `mov rax, rbx` | Register value |
+| Memory (Absolute) | `[Imm]` | `mov rax, [0x600000]` | Constant address (AT&T: `Imm`) |
+| Memory (Indirect) | `[reg]` | `mov rax, [rdi]` | Register as address (AT&T: `(reg)`) |
+| Memory (Base + Displacement) | `[reg + Imm]` | `mov rax, [rbp + 8]` | Register plus offset (AT&T: `Imm(reg)`) |
+| Memory (Indexed) | `[reg1 + reg2]` | `mov rax, [rbx + rcx]` | Two registers (AT&T: `(reg1, reg2)`) |
+| Memory (Base + Indexed) | `[reg1 + Imm + reg2]` | `mov rax, [rbp + 8 + rcx]` | Displacement + two regs (AT&T: `Imm(reg1, reg2)`) |
+| Memory (Scaled Index) | `[reg * s]` | `mov rax, [rcx * 8]` | Scaled register (AT&T: `(,reg,s)`) |
+| Memory (Disp + Scaled) | `[Imm + reg * s]` | `mov rax, [8 + rcx * 4]` | Displacement + scaled (AT&T: `Imm(,reg,s)`) |
+| Memory (Base + Scaled) | `[reg1 + reg2 * s]` | `mov rax, [rbp + rcx * 4]` | Base + scaled (AT&T: `(reg1, reg2, s)`) |
+| Memory (Full) | `[reg1 + Imm + reg2 * s]` | `mov rax, [rbp + 8 + rcx * 4]` | All components (AT&T: `Imm(reg1, reg2, s)`) |
+
+**Key differences from AT&T:**
+
+- NASM uses `[...]` for memory (AT&T uses parentheses)
+- No `$` prefix on immediates, no `%` on registers
+- Operators within brackets: `+` for addition, `*` for scaling
+- Scaling factor `s` must be 1, 2, 4, or 8
+
+## Push and Pop Instructions in NASM Intel Syntax
+
+From the "Computer Systems" book, `push` and `pop` are stack operations. Both work identically in NASM Intel syntax:
+
+**AT&T syntax (from the book):**
+```asm
+pushq %rax          ; push 8 bytes from rax onto stack
+popq %rdx           ; pop 8 bytes from stack into rdx
+```
+
+**NASM Intel syntax:**
+```nasm
+push rax            ; push 8 bytes from rax onto stack
+pop rdx             ; pop 8 bytes from stack into rdx
+```
+
+**How it works (from the book's Figure 3.8):**
+
+| Register | Initially | After `push rax` | After `pop rdx` |
+|----------|-----------|------------------|-----------------|
+| `rax` | 0x123 | 0x123 | 0x123 |
+| `rdx` | 0 | 0 | 0x123 |
+| `rsp` | 0x108 | 0x100 | 0x108 |
+
+**Stack visualization:**
+```
+Step 1: Initially              Step 2: After push rax        Step 3: After pop rdx
+--------                       --------                       --------
+| .... |                       | ....  |                       | ....  |
+| .... |                       | ....  |                       | ....  |
+| .... | ← rsp (0x108)         | ....  |                       | ....  | ← rsp (0x108)
+         Stack top             | 0x123 | ← rsp (0x100)         | 0x123 | 
+  Stack top                     Stack top                      Stack top
+```
+
+**Key points:**
+
+- `push rax` decrements `rsp` by 8 (stack grows downward) and writes `rax` to `[rsp]`
+- `pop rdx` reads from `[rsp]` into `rdx` and increments `rsp` by 8
+- In NASM Intel syntax, no size suffix needed (size determined by register: `push rax` is 64-bit)
+- AT&T uses `pushq`/`popq` to specify 64-bit; NASM infers from the operand
+
+## Integer Arithmetic Operations in NASM Intel Syntax
+
+Common x86-64 integer arithmetic and logical operations (from the CS:APP book Figure 3.10):
+
+| Instruction | NASM Syntax | Effect | Description |
+|-------------|------------|--------|-------------|
+| **lea** | `lea D, [S]` | D ← &S | Load effective address |
+| **inc** | `inc D` | D ← D + 1 | Increment |
+| **dec** | `dec D` | D ← D - 1 | Decrement |
+| **neg** | `neg D` | D ← -D | Negate |
+| **not** | `not D` | D ← ~D | Bitwise complement |
+| **add** | `add D, S` | D ← D + S | Add |
+| **sub** | `sub D, S` | D ← D - S | Subtract |
+| **imul** | `imul D, S` | D ← D * S | Signed multiply |
+| **xor** | `xor D, S` | D ← D ^ S | Exclusive-or |
+| **or** | `or D, S` | D ← D \| S | Bitwise or |
+| **and** | `and D, S` | D ← D & S | Bitwise and |
+| **sal** | `sal D, k` | D ← D << k | Left shift (arithmetic) |
+| **shl** | `shl D, k` | D ← D << k | Left shift (same as sal) |
+| **sar** | `sar D, k` | D ← D >>A k | Arithmetic right shift |
+| **shr** | `shr D, k` | D ← D >>L k | Logical right shift |
+
+**Examples:**
+```nasm
+lea rax, [rdi + 8]      ; rax gets the address of rdi + 8
+inc rax                 ; rax ← rax + 1
+sub rax, rbx            ; rax ← rax - rbx
+imul rax, rcx           ; rax ← rax * rcx
+and rax, 0xfff          ; rax ← rax & 0xfff (mask lower 12 bits)
+sal rax, 3              ; rax ← rax << 3 (multiply by 8)
+sar rax, 2              ; rax ← rax >> 2 (arithmetic right shift)
+```
+
+## Load Effective Address (LEA) Examples in NASM Intel Syntax
+
+The `lea` (load effective address) instruction is powerful for computing addresses and simple arithmetic:
+
+| NASM Intel Syntax | Result (in rax) |
+|-------------------|-----------------|
+| `lea rax, [rdx + 9]` | rax ← rdx + 9 |
+| `lea rax, [rdx + rbx]` | rax ← rdx + rbx |
+| `lea rax, [rdx + rbx * 3]` | rax ← rdx + rbx × 3 |
+| `lea rax, [rbx * 8 + 2]` | rax ← rbx × 8 + 2 |
+
+**Key advantage:** `lea` performs arithmetic without affecting CPU flags (unlike `add`, `sub`, etc.), making it useful for quick calculations.
+
+## LEA in Real Code: Computing Polynomials
+
+Here's a great example from CS:APP showing how a compiler uses `lea` for arithmetic:
+
+**C code:**
+```c
+long scale(long x, long y, long z) {
+    long t = x + 4 * y + 12 * z;
+    return t;
+}
+```
+
+**Calling convention (x86-64):**
+- `rdi` = x (first argument)
+- `rsi` = y (second argument)
+- `rdx` = z (third argument)
+
+**Assembly translation in NASM Intel syntax:**
+```nasm
+scale:
+    lea rax, [rdi + rsi * 4]      ; rax = x + 4*y (first part)
+    lea rdx, [rdx + rdx * 2]      ; rdx = z + 2*z = 3*z
+    lea rax, [rax + rdx * 4]      ; rax = (x + 4*y) + 3*z*4 = x + 4*y + 12*z
+    ret
+```
+
+1. First `lea`: Computes `x + 4*y` using the base+scaled index addressing mode
+2. Second `lea`: Computes `3*z` by computing `z + z*2` 
+3. Third `lea`: Adds the results: `(x + 4*y) + (3*z)*4 = x + 4*y + 12*z`
+
+The compiler cleverly decomposes `12*z` into `(3*z)*4` to fit within the addressing mode's capabilities. `lea` is ideal here because it performs multiple arithmetic operations (addition and multiplication by powers of 2) in a single instruction without modifying flags.
+
+```nasm
+lea rdx, [rdx + rdx * 2]
+```
+
+This does NOT dereference. It just computes the address rdx + rdx*2 and stores that address value in rdx. No memory access happens.
+
+## Little-Endian vs Big-Endian
+
+**Endianness** describes how multi-byte values are stored in memory:
+
+- **Little-Endian:** Least significant byte first (low-order bytes at lower addresses)
+- **Big-Endian:** Most significant byte first (high-order bytes at lower addresses)
+
+**x86-64 is little-endian**, which is why it's important to understand for assembly programming.
+
+### Example: 64-bit hexadecimal value
+
+Let's store the 64-bit value `0x123456789ABCDEF0` in memory starting at address `0x1000`:
+
+**Little-Endian (x86-64):**
+```
+Address:  0x1000 0x1001 0x1002 0x1003 0x1004 0x1005 0x1006 0x1007
+Value:    0xF0   0xDE   0xBC   0x9A   0x78   0x56   0x34   0x12
+```
+
+The 64-bit value is stored **backwards** (LSB first). The lowest byte `0xF0` is at the lowest address.
+
+**Big-Endian:**
+```
+Address:  0x1000 0x1001 0x1002 0x1003 0x1004 0x1005 0x1006 0x1007
+Value:    0x12   0x34   0x56   0x78   0x9A   0xBC   0xDE   0xF0
+```
+
+The 64-bit value is stored **forwards** (MSB first). The highest byte `0x12` is at the lowest address.
+
+### NASM Assembly Example
+
+```nasm
+mov qword [rax], 0x123456789ABCDEF0   ; Store the 64-bit value in memory at [rax]
+```
+
+If `rax` points to address `0x1000` (on x86-64 little-endian):
+
+- Byte at `[rax + 0]` = `0xF0`
+- Byte at `[rax + 1]` = `0xDE`
+- Byte at `[rax + 2]` = `0xBC`
+- Byte at `[rax + 3]` = `0x9A`
+- Byte at `[rax + 4]` = `0x78`
+- Byte at `[rax + 5]` = `0x56`
+- Byte at `[rax + 6]` = `0x34`
+- Byte at `[rax + 7]` = `0x12`
+
+So:
+
+- In register: the value is unchanged, it's 0x123456789ABCDEF0  
+- When extracted as bytes: you get the little-endian byte order.
+- When written to memory: those bytes are stored in little-endian order.
+
+### Why This Matters
+
+When manipulating multi-byte values in assembly (especially in struct fields), you must account for endianness:
+
+```nasm
+mov rax, 0x123456789ABCDEF0
+mov byte [rdi], al       ; [rdi + 0] = 0xF0
+mov byte [rdi + 1], ah   ; [rdi + 1] = 0xDE
+
+; better:
+mov rax, 0x123456789ABCDEF0
+mov byte [rdi], al              ; [rdi + 0] = 0xF0
+shr rax, 8
+mov byte [rdi + 1], al          ; [rdi + 1] = 0xDE
+; ... etc
+```
 
 ## The Meaning of 0xFFF
 
