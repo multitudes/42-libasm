@@ -696,6 +696,113 @@ mov qword [rax], rcx    ; *begin_list = current->next
 
 The initial `lea` result (8) when `rbp` is NULL is garbage, but it is immediately replaced by `cmove` with the proper value. This way, both cases end up with `rax` containing the right address to update, and I avoid any segfaults or undefined behavior.
 
-## Resources
-[Computer Systems: A Programmer's Perspective - Carnegie Mellon](https://csapp.cs.cmu.edu/)  
+## SET
 
+The **`set` instruction** sets a single **byte** to 0 or 1 based on CPU condition flags.
+
+```c
+int comp(data_t a, data_t b) {
+    // ...compare a and b...
+    // return 1 if a < b, else 0
+}
+```
+
+```nasm
+comp:
+    cmp rdi, rsi           ; Compare a:b (sets condition flags)
+    setl al                ; Set al to 0 or 1 (1 if a < b)
+    movzx eax, al          ; Zero-extend al to 32-bit eax
+    ret
+```
+
+1. `cmp rdi, rsi` - Compares the values and sets CPU flags
+2. `setl al` - Checks the flags: if "less than" condition is true, sets `al = 1`, else `al = 0`
+3. `movzx eax, al` - Zero-extends the byte result to 32 bits (clears upper bytes)
+
+**Common `set` instructions (synonyms):**
+
+- `sete` - Set if equal (ZF = 1)
+- `setne` - Set if not equal (ZF = 0)
+- `setl` - Set if less (signed) 
+- `setg` - Set if greater (signed)
+- `setle` - Set if less or equal
+- `setge` - Set if greater or equal
+- `setz` - Set if zero (same as `sete`)
+- `setnz` - Set if not zero (same as `setne`)
+
+Each sets the destination byte to 1 if the condition is true, 0 if false.
+
+## Calling functions
+
+Passing control from function P to function Q involves simply setting the program
+counter (PC) to the starting address of the code for Q. However, when it later
+comes time for Q to return, the processor must have some record of the code
+location where it should resume the execution of P. This information is recorded
+in x86-64 machines by invoking procedure Q with the instruction call Q. This
+instruction pushes an address A onto the stack and sets the PC to the beginning
+of Q. The pushed address A is referred to as the return address and is computed
+as the address of the instruction immediately following the call instruction. The
+counterpart instruction ret pops an address A off the stack and sets the PC to A.
+
+## x86-64 Register Reference Table
+
+Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
+
+| 64-bit | 32-bit | 16-bit | 8-bit Low | 8-bit High | Purpose | Calling Convention |
+|--------|--------|--------|-----------|------------|---------|-------------------|
+| **rax** | eax | ax | al | ah | Return value, accumulator | Caller-saved |
+| **rbx** | ebx | bx | bl | bh | Base register | **Callee-saved** |
+| **rcx** | ecx | cx | cl | ch | 4th argument, counter | Caller-saved |
+| **rdx** | edx | dx | dl | dh | 3rd argument, data | Caller-saved |
+| **rsi** | esi | si | sil | - | 2nd argument, source index | Caller-saved |
+| **rdi** | edi | di | dil | - | 1st argument, destination index | Caller-saved |
+| **rbp** | ebp | bp | bpl | - | Frame/base pointer | **Callee-saved** |
+| **rsp** | esp | sp | spl | - | Stack pointer | **Special** |
+| **r8** | r8d | r8w | r8b | - | 5th argument | Caller-saved |
+| **r9** | r9d | r9w | r9b | - | 6th argument | Caller-saved |
+| **r10** | r10d | r10w | r10b | - | General purpose | Caller-saved |
+| **r11** | r11d | r11w | r11b | - | General purpose | Caller-saved |
+| **r12** | r12d | r12w | r12b | - | General purpose | **Callee-saved** |
+| **r13** | r13d | r13w | r13b | - | General purpose | **Callee-saved** |
+| **r14** | r14d | r14w | r14b | - | General purpose | **Callee-saved** |
+| **r15** | r15d | r15w | r15b | - | General purpose | **Callee-saved** |
+
+**Notes:**
+- **Callee-saved** registers (rbx, rbp, r12-r15) must be preserved if used
+- **Caller-saved** registers can be freely modified
+- **rsp** always points to the stack top
+- **rip** is the instruction pointer (program counter)
+
+## Quick Reference Notes
+
+**ISA** - Instruction Set Architecture
+
+**RIP** - Program counter (instruction pointer)
+
+**gcc -Og -S main.c** - Compile to assembly with minimal optimization
+
+**x86-64 / AMD64:**
+- 64-bit (2002): Core i7, AVX 256-bit
+- 32-bit (1985): i386
+- First 16-bit: 8086 (1978)
+
+**Register Convention:**
+- **6 registers** for integer/pointer arguments: `rdi, rsi, rdx, rcx, r8, r9`
+- **6 float registers** for floating-point: `xmm0-xmm5`
+
+**Callee-saved registers** (must preserve): `rbx, rbp, r12-r15`  
+**Caller-saved registers** (can freely modify): `rax, rcx, rdx, rsi, rdi, r8-r11`
+
+**Stack:**
+- Stack pointer: `rsp`
+- **Fast** but **general temp storage**
+- `rbx` is for base addressing
+
+**Register roles:**
+- `r8-r9`: 5th-6th arguments
+- `r10-r11`: Caller-saved, general temp
+- `r12-r15`: Callee-saved, general temp
+
+## Resources
+
+[Computer Systems: A Programmer's Perspective - Carnegie Mellon](https://csapp.cs.cmu.edu/)  
