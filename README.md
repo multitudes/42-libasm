@@ -6,6 +6,10 @@ These are my personal notes for the 42 school libasm project.
 **Assembler:** NASM (Netwide Assembler) with `-f elf64` flag  
 **Syntax:** Intel assembly syntax
 
+## What is assembly
+From the school's subject I quote the definition:
+> An assembly (or assembler) language, often abbreviated asm, is a low-level programming language for a computer, or other programmable device, in which there is a very strong (but often not one-to-one) correspondence between the language and the architecture’s machine code instructions. Each assembly language is specific to a particular computer architecture. In contrast, most high-level programming languages are generally portable across multiple architectures but require interpreting or compiling. Assembly language may also be called symbolic machine code.
+
 ## What is ELF64?
 
 **ELF64** stands for **Executable and Linkable Format, 64-bit**. It's the standard binary file format used on Linux and other Unix-like systems for:

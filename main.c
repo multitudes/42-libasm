@@ -6,6 +6,10 @@
 #include <string.h>
 #include <unistd.h>
 
+/*
+Comprehensive test suite for libasm functions
+*/ 
+
 void test_strlen(void) {
   printf("\n=== FT_STRLEN TESTS ===\n");
 
