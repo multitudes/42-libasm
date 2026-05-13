@@ -807,6 +807,80 @@ Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
 - `r10-r11`: Caller-saved, general temp
 - `r12-r15`: Callee-saved, general temp
 
+
+## strdup and malloc
+It’s a subtle but vital distinction in how the CPU works. When we talk about **stack alignment**, we aren't just talking about the `push` instructions you wrote; we are talking about the **Return Address** that the hardware automatically places on the stack.
+
+### The "Hidden" 8 Bytes
+
+When you use the `call` instruction, the CPU does two things in one hardware cycle:
+
+1. It pushes the address of the *next* instruction (the return address) onto the stack.
+2. It jumps to the function.
+
+So, the moment your code enters `ft_strdup`, the stack pointer (`RSP`) has already moved down by **8 bytes**.
+
+### The Math of the 16-Byte Rule
+
+The System V ABI (the Linux rulebook) says: **"The stack must be 16-byte aligned *before* the `call` instruction is executed."**
+
+Let’s track your `RSP` relative to 16:
+
+1. **Before `ft_strdup` is called:** Stack is aligned (0 bytes offset).
+2. **`call ft_strdup` happens:** CPU pushes the return address. Stack is now at **8 bytes** offset.
+3. **`push r15`**: You add 8 bytes. Stack is at **16 bytes** offset (Aligned! ✅).
+4. **`push rbx`**: You add 8 bytes. Stack is at **24 bytes** offset (Misaligned! ❌).
+5. **`push r14`**: You add 8 bytes. Stack is at **32 bytes** offset (Aligned! ✅).
+
+### What happens if you get it wrong?
+
+If you call `malloc` (or any GLIBC function) while the stack is at a 24-byte or 8-byte offset (misaligned), it might work 99% of the time. But the moment `malloc` tries to use an **SSE/AVX instruction** (which requires data to be aligned to 16 bytes on the stack), your program will crash with a `General Protection Fault`.
+
+That is a great question. `test rax, rax` is an assembly "idiom"—a classic trick that every developer uses because it’s faster and smaller than other methods.
+
+### How it works
+
+The `test` instruction performs a **bitwise AND** between the two operands. However, unlike the `and` instruction, it **does not store the result** anywhere. It only updates the CPU's **Flags Register**.
+
+When you do `test rax, rax`:
+
+1. The CPU looks at `rax & rax`.
+2. Since any number ANDed with itself is just that number ($1 \& 1 = 1$ and $0 \& 0 = 0$), the result is simply the value of `rax`.
+3. The CPU then sets the **Zero Flag (ZF)** based on that result.
+
+* **If `rax` is 0:** The result of the AND is 0, so the **Zero Flag (ZF)** is set to **1**.
+* **If `rax` is NOT 0:** The result is non-zero, so the **Zero Flag (ZF)** is set to **0**.
+
+### Why use `test` instead of `cmp`?
+
+You could technically write `cmp rax, 0`. However:
+
+* `cmp rax, 0` requires the CPU to handle an "immediate" value (the `0`), which usually takes more bytes of machine code.
+* `test rax, rax` is a very simple operation for the CPU's logic unit, making it slightly more efficient and compact (usually just 3 bytes of machine code for 64-bit registers).
+
+---
+
+### The Flags Register
+
+When you follow up with a jump instruction:
+
+* `je` (Jump if Equal) or `jz` (Jump if Zero) checks if the **Zero Flag is 1**.
+* `jne` (Jump if Not Equal) or `jnz` (Jump if Not Zero) checks if the **Zero Flag is 0**.
+
+In your code:
+
+```nasm
+    test    rax, rax        ; Sets ZF to 1 if RAX is 0
+    je      .malloc_error   ; Jumps if ZF is 1 (meaning malloc returned NULL)
+
+```
+
+### Fun Fact: `or rax, rax`
+
+You will sometimes see `or rax, rax` used for the same purpose. It also sets the Zero Flag without changing the register's value. However, `test` is the industry standard for "Is this pointer NULL?"
+
 ## Resources
 
 [Computer Systems: A Programmer's Perspective - Carnegie Mellon](https://csapp.cs.cmu.edu/)  
+
+[syscalls](https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/)

@@ -1,5 +1,7 @@
 section .text
-global	ft_strdup                       
+global	ft_strdup
+extern ft_strlen
+extern ft_strcpy
 extern malloc 
 extern __errno_location 
 
@@ -13,46 +15,32 @@ extern __errno_location
 ; Returns: pointer to the duplicated string (or NULL if insufficient memory)
 
 ft_strdup:                              
-; push the register on the stack, r15, r14 and rbx are callee saved registers
-; their value will be later reinstated before returning.
-	push	r15 
-	push	r14
-	push	rbx
-; now initialize r15 with the source string pointer (s)
-	mov	    r15, rdi
+; Save callee-saved registers to the stack.
+; These must be preserved across function calls per System V ABI.
+; We use these to store variables that must survive the call to malloc.
+	push	r15 				; to save the source string pointer
+	push	rbx					; to save the length of the string
+	push    r14            		; for alignment- stack must be a multiple of 16.. and will contain destination
+
+	mov	    r15, rdi			
 	xor	    ebx, ebx
 
-; -- Find the length of the string (including null terminator) --
-.len_loop:                              
-	cmp	    byte [r15 + rbx], 0
-; why use lea here? add and inc also increment rbx by 1, 
-; but they do affect the CPU flags.
-	lea	    rbx, [rbx + 1]
-	jne	    .len_loop
+	call 	ft_strlen    			; Length comes back in RAX
+    inc  	rax          			; Add 1 for null terminator
+	mov  	rbx, rax     	   		; SAVE length in rbx before it's lost
+    mov  	rdi, rax       	 	; Also put it in rdi for malloc
 
-; move the length of the string (in rbx) to rdi for malloc
-; rbx already includes space for the null terminator.
-	mov	    rdi, rbx
-	call	malloc wrt ..plt
+	call	malloc wrt ..plt 	; rax will then contain the pointer to the allocated memory or NULL on failure
 	test	rax, rax
 	je	    .malloc_error       ; Jump to error handling if malloc failed
-
-; Save the allocated pointer (we'll return this)
-	mov	r14, rax
-; If rbx is zero, there is nothing to copy, 
-	test	rbx, rbx
-	je	    .prepare_ret
-
-; here I could call memcpy, but I will do it manually
-; Use rbx as destination counter
-    xor rbx, rbx
-.loop:
-    mov     cl, [r15 + rbx]  ; Load byte from source
-    mov     [r14 + rbx], cl  ; Store byte to destination
-    test    cl, cl           ; Check for null terminator
-    je      .prepare_ret     ; Exit if null terminator copied
-    inc     rbx              ; Advance to next byte
-    jmp     .loop            ; Repeat
+	
+; RAX now has the new destination pointer
+; R15 still has the source string pointer
+    
+    mov     rdi, rax        ; 1st arg for strcpy: destination
+    mov     rsi, r15        ; 2nd arg for strcpy: source
+    call    ft_strcpy       ; This copies the string AND returns the pointer in RAX
+    jmp     .ret
 
 .prepare_ret:
     mov     rax, r14         ; Return the allocated string pointer
@@ -67,8 +55,8 @@ ft_strdup:
 
 ; Here I reinstate the saved registers and return
 .ret:
-	pop	rbx
 	pop	r14
+	pop	rbx
 	pop	r15
 	ret
 

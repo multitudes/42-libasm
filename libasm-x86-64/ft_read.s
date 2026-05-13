@@ -25,15 +25,15 @@ ft_read:
 
 ; --- Error Handling Path ---
 ; The syscall failed. rax contains a negative error code (e.g., -9 for EBADF).
+
 .error:
     neg rax                     ; make it positive
-    mov rdi, rax                ; Temporarily save the positive errno in rdi. We use rdi
-                                ; because it's a "caller-saved" register that is not preserved
-                                ; across the call to __errno_location. The call itself
-                                ; will overwrite rax.
+    mov rdi, rax                ; Temporarily save the positive errno liocation in rdi. rdi is a
+                                ; "caller-saved" register 
 
-    ; Get the memory address of the global `errno` variable from libc.
-    ; The 'wrt ..plt' syntax is essential for PIE compatibility.
+; Get the memory address of the global `errno` variable from libc.
+; The 'wrt ..plt' syntax is essential for PIE compatibility.
+
     call __errno_location wrt ..plt
                                 ; On return, rax now holds the address of errno.           
     mov [rax], edi              ; Store the positive error code (from edi, the lower 32 bits
