@@ -14,7 +14,7 @@ ft_strcpy:
     mov rax, rdi        ; Save original destination pointer for the return value.
 
 .loop:
-    mov cl, [rsi]       ; Load one byte from the source (src).
+    mov cl, [rsi]       ; Load one byte from the source (src). cl is the lower 8 bits of rcx, which we use as a temporary register.
     mov [rdi], cl       ; Store that byte in the destination (dest).
     inc rsi             ; Increment src pointer.
     inc rdi             ; Increment dest pointer.

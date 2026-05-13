@@ -12,35 +12,19 @@ global	ft_strcmp
 
 ft_strcmp:
 
-; Initialize rax to 0, which will hold the return value.
-	xor	eax, eax
-; move rdi (s1) to rcx and then rsi (s2) will be or'd with rcx.
-; If both rdi and rsi are NULL (0), then rcx will be 0 and the ZF 
-; will be set. This is the behaviour of the strcmp.
-	mov	rcx, rdi
-	or	rcx, rsi
-	je	.ret
+.loop:
+    mov al, [rdi]		; al is the lower 8 bits of rax
+    mov bl, [rsi]		; bl is the lower 8 bits of rbx
+    cmp al, bl          
+    jne .diff           
+    test al, al         ; Is it the end of string?
+    jz .diff            ; If both are terminators and are null the strings are equal
+    inc rdi
+    inc rsi
+    jmp .loop
 
-; Load the byte at the memory address pointed to by rdi 
-; (the current character of the first string) 
-; into the register al (the lower 8 bits of rax).
-	mov	al, byte [rdi]
-	test al, al
-	je .end
-	add	rdi, 1
-.loop:                                
-	cmp	al, byte [rsi]      ; Compare current char from s1 (in al) 
-                            ; to current char from s2
-	jne	.end                ; If not equal, jump to end        
-	add	rsi, 1              ; Move to next char in s2
-	movzx	eax, byte [rdi] ; Load next char from s1 into eax
-	add	rdi, 1
-	test	al, al          ; Check if new char is null terminator
-	jne	.loop
-.end:
-	movzx	eax, al
-	movzx	ecx, byte  [rsi]
-	sub	eax, ecx
-.ret:
-	ret
-section .note.GNU-stack noalloc noexec nowrite
+.diff:
+    movzx eax, al
+    movzx ecx, bl
+    sub eax, ecx        ; This gives you aas return the negative/positive/zero
+    ret
