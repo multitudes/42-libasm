@@ -70,7 +70,7 @@ ft_atoi_base:
 .parse_loop:
 	movzx ecx, byte [rsi]	; Load the current character into new scratch pad
 	test cl, cl				; if null terminator, end of string reached
-	jz .apply_sign			; stop parsing
+	jz .parse_end			; stop parsing
 	
 	; Find current character in base
 	mov rdx, r13			; rdx will be the current position in base string
@@ -89,21 +89,13 @@ ft_atoi_base:
 	jmp .find_in_base
 	
 .digit_found:
-	; Check if digit value is valid (< base length)
-	cmp r8d, r15d
-	jge .parse_end
-	
 	; result = result * base + digit_value
-	mov ebx, r15d			; ebx = base length
-	imul eax, ebx			; eax = result * base
+	imul eax, r15d			; eax = result * base
 	add eax, r8d			; eax += digit_value
-	
 	add rsi, 1
 	jmp .parse_loop
 	
 .parse_end:
-	; Apply sign if negative
-.apply_sign:
 	test r14d, r14d
 	jz .return_result
 	neg eax
@@ -138,67 +130,54 @@ ft_atoi_base:
 	movzx eax, byte [r13]
 	test al, al
 	jz .base_invalid
-	
 	movzx eax, byte [r13 + 1]
-	test al, al
-	jz .base_invalid
+    test al, al
+    jz .base_invalid
+
+    xor eax, eax            ; eax will track the length of the base
+    mov rsi, r13            ; rsi = working pointer for base string
 	
-	; Check each character in base
-	mov rsi, r13			; rsi = base pointer (outer loop)
-	
-.validate_outer:
-	movzx eax, byte [rsi]
-	test al, al
-	jz .base_valid_ret
-	
+.validate_characters_in_base:
+	movzx ecx, byte [rsi]   ; Load current char into ecx (saving eax for counter)
+    test cl, cl             ; Is it the null terminator?
+    jz .count_done          ; eax already holds the exact count. 
+
 	; Check for invalid characters: +, -, whitespace
-	cmp al, '+'
+	cmp cl, '+'
 	je .base_invalid
-	cmp al, '-'
+	cmp cl, '-'
 	je .base_invalid
-	cmp al, ' '
+	cmp cl, ' '
 	je .base_invalid
-	cmp al, 9				; tab
+	cmp cl, 9				; tab
 	je .base_invalid
-	cmp al, 10				; newline
+	cmp cl, 10				; newline
 	je .base_invalid
-	cmp al, 11				; vertical tab
+	cmp cl, 11				; vertical tab
 	je .base_invalid
-	cmp al, 12				; form feed
+	cmp cl, 12				; form feed
 	je .base_invalid
-	cmp al, 13				; carriage return
+	cmp cl, 13				; carriage return
 	je .base_invalid
 	
 	; Check for duplicates: compare with all previous characters
 	mov rdx, r13			; rdx = start of base
 	
 .check_duplicates:
-	cmp rdx, rsi
-	je .no_duplicate		; reached current character without finding duplicate
+	cmp rdx, rsi			; if we reached the same pointer/char in base no duplicates..
+	je .no_duplicate		
 	
-	movzx ecx, byte [rdx]
-	cmp cl, al
+	movzx ebx, byte [rdx]
+	cmp cl, bl
 	je .base_invalid		; found duplicate
 	
 	add rdx, 1
 	jmp .check_duplicates
 	
 .no_duplicate:
-	add rsi, 1
-	jmp .validate_outer
-	
-.base_valid_ret:
-	; Count and return base length
-	mov rsi, r13
-	xor eax, eax
-	
-.count_base:
-	movzx ecx, byte [rsi]
-	test cl, cl
-	jz .count_done
-	add eax, 1
-	add rsi, 1
-	jmp .count_base
+	add eax, 1				; increment base length counter
+	add rsi, 1				; move to next char in base
+	jmp .validate_characters_in_base
 	
 .count_done:
 	pop rdi
