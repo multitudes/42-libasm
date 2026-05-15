@@ -15,74 +15,100 @@ extern free
 ; NB rbp, rbx, r12, r13, r14 and r15 are callee-saved registers, which means:
 ; our function must preserve their values if you use them
 
+section .text
+global  ft_list_remove_if    
 
-ft_list_remove_if:                      
-	push	rbp
-	push	r15
-	push	r14
-	push	r13
-	push	r12
-	push	rbx
+extern free
 
-	push	rax 			; this one is not callee saved but I need storage
-	mov	qword [rsp], rcx 	; store the free_fct pointer on the stack
-	
-	test	rdi, rdi		; null pointer check for begin_list
-	je	.return	
+; void ft_list_remove_if(t_list **begin_list, void *data_ref, int (*cmp)(), void (*free_fct)(void *))
+ft_list_remove_if:
+    ; 1. Gateway Guard Clauses
+    test    rdi, rdi            ; Is t_list **begin_list NULL?
+    jz      .quick_ret
+    test    rdx, rdx            ; Is cmp function pointer NULL?
+    jz      .quick_ret
+    test    rcx, rcx            ; Is free_fct pointer NULL?
+    jz      .quick_ret
+    
+    ; 2. Frame Prologue 
+    push    rbp
+    mov     rbp, rsp
 
+    ; 3. Preserve Callee-Saved Registers
+    push    rbx
+    push    r12
+    push    r13
+    push    r14
+    push    r15
+    push    rdi                 ; Push rdi (begin_list) directly to the stack! 
+                                ; This handles our 16-byte alignment AND saves it safely.
 
-	mov	r12, rdi			; r12 = begin_list
-	mov	rbx, qword  [rdi]	; rbx = current node = *begin_list
-	test	rbx, rbx		; if current node is NULL, just return
-	je	.return
+    ; 4. Cache Arguments in Protected Registers
+    ; (rdi is saved on stack at [rsp])
+    mov     r13, rsi            ; r13 = data_ref
+    mov     r14, rdx            ; r14 = cmp function pointer
+    mov     r15, rcx            ; r15 = free_fct pointer
 
-	mov	r15, rdx			; load r15 = cmp function pointer
-	mov	r13, rsi			; load r13 = data_ref
-	xor	ebp, ebp			; rbp = prev - will track the previous node (initially NULL)
-	jmp	.loop
+    ; 5. Initialize Traversal Windows
+    mov     rbx, qword [rdi]    ; rbx = current_node (*begin_list)
+    xor     r12, r12            ; r12 = prev_node (Starts as NULL, safely callee-saved!)
+    
+.inner_loop:
+    test    rbx, rbx            ; Is current_node (rbx) NULL?
+    jz      .full_exit          ; If yes, we finished traversing the list!
 
-.continue:                                
-	mov	r14, qword  [rbx + 8]	; advance current to next node (offset 8)
-	mov	rbp, rbx				; rbp = prev = rbx
+    ; Call the Comparison Function: cmp(current->data, data_ref)
+    mov     rdi, qword [rbx]    ; rdi = current_node->data
+    mov     rsi, r13            ; rsi = data_ref
+    call    r14                 ; call cmp
+    
+    test    eax, eax            ; Did cmp return 0?
+    jne     .dont_remove        ; If not zero, skip deletion
 
-.continue_no_advance:                               
-	mov	rbx, r14				; now rbx = current 
-	test	r14, r14			; if current is NULL, just return
-	je	.return
+    ; UNLINK THE NODE
+    mov     rcx, qword [rbx + 8]; rcx = current_node->next
+    
+    test    r12, r12            ; Is prev_node (r12) NULL?
+    jz      .remove_head        ; If prev is NULL, we are removing the head node!
 
-.loop:                                
-	mov	rdi, qword  [rbx]	   	; before call to cmp load in rdi the rbx->data (offset 0)
-	mov	rsi, r13		   		; before call to cmp data_ref - in rsi because of function call 2nd param
-	xor	eax, eax				; clear rax before function call
-	call	r15					; Call cmp(rbx->data, data_ref)	
-	test	eax, eax			; test return value
-	jne	.continue					; if not zero, continue to next node
+    ; Case 2: Removing a middle/tail node (prev != NULL)
+    mov     qword [r12 + 8], rcx; prev_node->next = current_node->next
+    jmp     .free_payload
 
-	; cmp returned 0 - Node needs to be removed
-	; there is a little game here tohandle the case where prev is NULL (removing head)
-	; I compute the address of prev->next in rax assuming prev is not NULL
-	; then I test if prev is NULL and if so I cmove rax to the address of *begin_list
-	; so in both cases rax ends up with the address where I need to store current->next
-	; then I do the store operation to unlink the node
-	lea	rax, [rbp + 8]				; rax = address of prev->next assuming prev is not null
-	test	rbp, rbp				; test if prev is NULL
-	cmove	rax, r12				; conditional move if rbp is zero - NULL then rax = r12 (address of *begin_list)
-									
-	mov	rcx, qword [rbx + 8]		; rcx = current->next (offset 8)
-	mov	qword  [rax], rcx			; prev->next = current->next or *begin_list = current->next if prev is NULL
-	mov	rdi, qword  [rbx]			; prepare for call rdi = rbx->data (offset 0)
-	mov	r14, qword  [rbx + 8]		; save rbx->next (offset 8)
-	call	qword  [rsp]   		; call the free_fct function stored on stack earlier             
-	mov	rdi, rbx				; again prepare for free of the node itself
-	call	free wrt ..plt
-	jmp	.continue_no_advance    ; I continue without advancing - r14 already has next node
+.remove_head:
+    ; Case 1: Removing the first node (prev == NULL)
+    mov     rax, qword [rsp]    ; Recover begin_list (t_list **) from our stack slot
+    mov     qword [rax], rcx    ; *begin_list = current_node->next
 
-.return:
-	add	rsp, 8
-	pop	rbx
-	pop	r12
-	pop	r13
-	pop	r14
-	pop	r15
-	pop	rbp
-	ret
+.free_payload:
+    ; FREE THE NODE'S DATA
+    mov     rdi, qword [rbx]    ; rdi = current_node->data
+    call    r15                 ; call free_fct(current->data)
+
+    ; FREE THE NODE ITSELF
+    mov     r10, qword [rbx + 8]; Cache current_node->next in scratch r10 before deletion
+    
+    mov     rdi, rbx            ; rdi = current_node
+    call    free wrt ..plt      ; free(current_node)
+
+    ; Re-align current window without advancing prev_node
+    mov     rbx, r10            ; current_node = saved next node
+    jmp     .inner_loop         
+
+.dont_remove:
+    ; STANDARD ADVANCE
+    mov     r12, rbx            ; prev_node = current_node (r12 is protected from free!)
+    mov     rbx, qword [rbx + 8]; current_node = current_node->next
+    jmp     .inner_loop
+    
+.full_exit:
+    pop     rdi                 ; Clean our local storage / alignment slot
+    pop     r15                 ; Restore all saved registers
+    pop     r14
+    pop     r13
+    pop     r12
+    pop     rbx
+    pop     rbp
+
+.quick_ret:
+    ret

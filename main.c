@@ -217,10 +217,29 @@ int compare_strings(const char *s1, const char *s2) {
 void print_list(t_list *list) {
     t_list *current = list;
     int count = 0;
+    if (!current) {
+        printf("    (List is completely empty)\n");
+        return;
+    }
     while (current) {
         printf("    Node %d: %s\n", count++, (char *)current->data);
         current = current->next;
     }
+}
+
+// Custom free function: frees dynamically allocated string data
+void free_node_data(void *data) {
+    printf("    [free_fct called] Freeing data payload: %s\n", (char *)data);
+    free(data);
+}
+
+// Helper to push a freshly allocated string onto the list
+void push_heap_string(t_list **list, const char *str) {
+    t_list *new_node = malloc(sizeof(t_list));
+    if (!new_node) return;
+    new_node->data = strdup(str); // Allocates string data on the heap
+    new_node->next = *list;
+    *list = new_node;
 }
 
 void test_list_sort_functions(void) {
@@ -285,6 +304,53 @@ void test_list_sort_functions(void) {
     printf("\n=== TESTS COMPLETE ===\n");
 }
 
+void test_list_remove_if(void) {
+    printf("\n=== LIBASM ft_list_remove_if TESTS ===\n");
+
+    t_list *list = NULL;
+
+    // Populating a list with heap-allocated strings
+    // List order will be: "Target" -> "Apple" -> "Target" -> "Target" -> "Orange" -> NULL
+    push_heap_string(&list, "Orange");
+    push_heap_string(&list, "Target"); // Back-to-back duplicate test
+    push_heap_string(&list, "Target");
+    push_heap_string(&list, "Apple");
+    push_heap_string(&list, "Target"); // Head element test
+
+    printf("\nInitial List before removal:\n");
+    print_list(list);
+
+    // ----------------------------------------------------
+    printf("\nExecuting ft_list_remove_if for value: \"Target\"\n");
+    
+    // Call your assembly function
+    // Expecting: "Target" at the head, middle, and back-to-back nodes to be removed and freed.
+    ft_list_remove_if(&list, "Target", compare_strings, free_node_data);
+
+    printf("\nList after removal (Expected: Apple -> Orange):\n");
+    print_list(list);
+
+    // ----------------------------------------------------
+    printf("\nTesting edge case: Removing remaining nodes to empty the list\n");
+    
+    printf("Removing \"Apple\"...\n");
+    ft_list_remove_if(&list, "Apple", compare_strings, free_node_data);
+    
+    printf("Removing \"Orange\"...\n");
+    ft_list_remove_if(&list, "Orange", compare_strings, free_node_data);
+
+    printf("\nFinal List state:\n");
+    print_list(list);
+
+    // ----------------------------------------------------
+    printf("\nTesting safety edge case: Passing a NULL list pointer\n");
+    t_list *null_list = NULL;
+    ft_list_remove_if(&null_list, "Anything", compare_strings, free_node_data);
+    printf("  Passed safely without crashing!\n");
+
+    printf("\n=== TESTS COMPLETE ===\n");
+}
+
 int main(void) {
   printf("################################\n");
   printf("  COMPREHENSIVE ASSEMBLY TESTS\n");
@@ -298,6 +364,8 @@ int main(void) {
   test_atoi_base();
   test_list_functions();
   test_list_sort_functions();
+  test_list_remove_if();
+
   printf("\n################################\n");
   printf("  ALL TESTS COMPLETED\n");
   printf("################################\n");
