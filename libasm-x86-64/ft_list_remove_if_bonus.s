@@ -3,7 +3,7 @@ global	ft_list_remove_if
 
 extern free
 
-; list_remove_if(t_list **begin_list, void *data_ref, int (*cmp)(), void (*free_fct)(void *))
+; void list_remove_if(t_list **begin_list, void *data_ref, int (*cmp)(), void (*free_fct)(void *))
 ; ------------------------------------------
 ; Removes from the list all elements for which the comparison function returns 0
 ; Arguments are passed via registers by the caller:
@@ -20,9 +20,8 @@ global  ft_list_remove_if
 
 extern free
 
-; void ft_list_remove_if(t_list **begin_list, void *data_ref, int (*cmp)(), void (*free_fct)(void *))
 ft_list_remove_if:
-    ; 1. Gateway Guard Clauses
+
     test    rdi, rdi            ; Is t_list **begin_list NULL?
     jz      .quick_ret
     test    rdx, rdx            ; Is cmp function pointer NULL?
@@ -30,74 +29,65 @@ ft_list_remove_if:
     test    rcx, rcx            ; Is free_fct pointer NULL?
     jz      .quick_ret
     
-    ; 2. Frame Prologue 
+    ; Frame Prologue 
     push    rbp
     mov     rbp, rsp
 
-    ; 3. Preserve Callee-Saved Registers
+    ; Preserve Callee-Saved Registers
     push    rbx
     push    r12
     push    r13
     push    r14
     push    r15
-    push    rdi                 ; Push rdi (begin_list) directly to the stack! 
-                                ; This handles our 16-byte alignment AND saves it safely.
+    push    rdi                 ; 16-byte alignment and rdi is saved on stack at [rsp]
 
-    ; 4. Cache Arguments in Protected Registers
-    ; (rdi is saved on stack at [rsp])
     mov     r13, rsi            ; r13 = data_ref
     mov     r14, rdx            ; r14 = cmp function pointer
     mov     r15, rcx            ; r15 = free_fct pointer
 
-    ; 5. Initialize Traversal Windows
     mov     rbx, qword [rdi]    ; rbx = current_node (*begin_list)
-    xor     r12, r12            ; r12 = prev_node (Starts as NULL, safely callee-saved!)
+    xor     r12, r12            ; r12 = prev_node (initialized to NULL)
     
 .inner_loop:
     test    rbx, rbx            ; Is current_node (rbx) NULL?
-    jz      .full_exit          ; If yes, we finished traversing the list!
+    jz      .full_exit          ; we finished traversing the list
 
     ; Call the Comparison Function: cmp(current->data, data_ref)
     mov     rdi, qword [rbx]    ; rdi = current_node->data
     mov     rsi, r13            ; rsi = data_ref
     call    r14                 ; call cmp
     
-    test    eax, eax            ; Did cmp return 0?
-    jne     .dont_remove        ; If not zero, skip deletion
+    test    eax, eax            ; 
+    jne     .dont_remove        ; If return value is not zero, skip deletion
 
-    ; UNLINK THE NODE
+    ; remove node
     mov     rcx, qword [rbx + 8]; rcx = current_node->next
     
     test    r12, r12            ; Is prev_node (r12) NULL?
-    jz      .remove_head        ; If prev is NULL, we are removing the head node!
+    jz      .remove_head        ; If prev is NULL, we are removing the head 
 
-    ; Case 2: Removing a middle/tail node (prev != NULL)
+    ; Removing a middle/tail node
     mov     qword [r12 + 8], rcx; prev_node->next = current_node->next
     jmp     .free_payload
 
 .remove_head:
-    ; Case 1: Removing the first node (prev == NULL)
     mov     rax, qword [rsp]    ; Recover begin_list (t_list **) from our stack slot
     mov     qword [rax], rcx    ; *begin_list = current_node->next
 
 .free_payload:
-    ; FREE THE NODE'S DATA
     mov     rdi, qword [rbx]    ; rdi = current_node->data
     call    r15                 ; call free_fct(current->data)
 
-    ; FREE THE NODE ITSELF
     mov     r10, qword [rbx + 8]; Cache current_node->next in scratch r10 before deletion
     
     mov     rdi, rbx            ; rdi = current_node
     call    free wrt ..plt      ; free(current_node)
 
-    ; Re-align current window without advancing prev_node
     mov     rbx, r10            ; current_node = saved next node
     jmp     .inner_loop         
 
 .dont_remove:
-    ; STANDARD ADVANCE
-    mov     r12, rbx            ; prev_node = current_node (r12 is protected from free!)
+    mov     r12, rbx            ; prev_node = current_node
     mov     rbx, qword [rbx + 8]; current_node = current_node->next
     jmp     .inner_loop
     
