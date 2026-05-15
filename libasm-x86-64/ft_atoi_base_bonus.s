@@ -12,48 +12,45 @@ global ft_atoi_base
 ; Returns 0 if invalid base
 
 ft_atoi_base:
-	push rbp
-	mov rbp, rsp
-	push rbx
-	push r12
+	push rbp			; save stack frame of previous function
+	mov rbp, rsp		; set up new stack frame for this function
+	push rbx			; preserves the callee-saved registers 
+	push r12			; according to the System V AMD64 ABI .. 
 	push r13
 	push r14
 	push r15
 	
-	mov r12, rdi			; r12 = str
-	mov r13, rsi			; r13 = base
-	xor r14d, r14d			; r14d = sign (0 = positive, 1 = negative)
+	mov r12, rdi			; save the pointer to the input string
+	mov r13, rsi			; save the pointer to the base string
+	xor r14d, r14d			; sign (0 = positive, 1 = negative)
 	
-	; Validate base
 	call .validate_base
-	test eax, eax
+	test eax, eax			; if validate_base returns 0, the base is invalid
 	jz .return_zero
 	
-	mov r15d, eax			; r15d = base length (at least 2 if valid)
+	mov r15d, eax			; Save the base length	
+	mov rsi, r12			; this will be my working pointer
 	
-	; Skip whitespace at the beginning of str
-	mov rsi, r12
 .skip_whitespace:
 	movzx eax, byte [rsi]
 	cmp al, ' '
-	je .ws_found
+	je .increment_rsi
 	cmp al, 9				; tab
-	je .ws_found
+	je .increment_rsi
 	cmp al, 10				; newline
-	je .ws_found
+	je .increment_rsi
 	cmp al, 11				; vertical tab
-	je .ws_found
+	je .increment_rsi
 	cmp al, 12				; form feed
-	je .ws_found
+	je .increment_rsi
 	cmp al, 13				; carriage return
-	je .ws_found
+	je .increment_rsi
 	jmp .check_sign
 	
-.ws_found:
+.increment_rsi:
 	add rsi, 1
 	jmp .skip_whitespace
 	
-	; Handle optional sign
 .check_sign:
 	movzx eax, byte [rsi]
 	cmp al, '+'
@@ -67,25 +64,24 @@ ft_atoi_base:
 .skip_plus:
 	add rsi, 1
 	
-	; Convert the number
 .parse_number:
-	xor eax, eax			; eax = result
+	xor eax, eax			; initialize eax - it will now contain the result
 	
 .parse_loop:
-	movzx ecx, byte [rsi]
-	test cl, cl
-	jz .apply_sign
+	movzx ecx, byte [rsi]	; Load the current character into new scratch pad
+	test cl, cl				; if null terminator, end of string reached
+	jz .apply_sign			; stop parsing
 	
 	; Find current character in base
-	mov rdx, r13
-	xor r8d, r8d			; r8d = digit value
+	mov rdx, r13			; rdx will be the current position in base string
+	xor r8d, r8d			; init current index counter for base string
 	
 .find_in_base:
 	movzx ebx, byte [rdx]
 	test bl, bl
-	jz .parse_end			; character not found in base, stop parsing
+	jz .parse_end			; end of base string - char is not in base - stop parsing
 	
-	cmp bl, cl
+	cmp bl, cl				; cl is the lower byte of ecx which contains the current character from input string
 	je .digit_found
 	
 	add rdx, 1
@@ -131,12 +127,10 @@ ft_atoi_base:
 	pop rbp
 	ret
 	
-	; Validate base: must have at least 2 chars, no duplicates, no +/-/whitespace
-	; Returns: base length in eax (0 if invalid)
+; Validate base: must have at least 2 chars, no duplicates, no +/-/whitespace
+; Returns: base length in eax (0 if invalid)
 .validate_base:
 	push rbx
-	push rcx
-	push rdx
 	push rsi
 	push rdi
 	
@@ -209,8 +203,6 @@ ft_atoi_base:
 .count_done:
 	pop rdi
 	pop rsi
-	pop rdx
-	pop rcx
 	pop rbx
 	ret
 	
@@ -218,8 +210,5 @@ ft_atoi_base:
 	xor eax, eax
 	pop rdi
 	pop rsi
-	pop rdx
-	pop rcx
 	pop rbx
 	ret
-section .note.GNU-stack noalloc noexec nowrite

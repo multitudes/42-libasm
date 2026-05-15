@@ -29,6 +29,36 @@ When you use `nasm -f elf64`, you're telling NASM to generate 64-bit object file
 
 For this project, all `.s` assembly files are assembled with `nasm -f elf64` to produce `.o` object files, which are then archived into a static library (`.a`) or linked into an executable.
 
+
+## x86-64 Register Reference Table
+
+Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
+
+| 64-bit | 32-bit | 16-bit | 8-bit Low | 8-bit High | Purpose | Calling Convention |
+|--------|--------|--------|-----------|------------|---------|-------------------|
+| **rax** | eax | ax | al | ah | Return value, accumulator | Caller-saved |
+| **rbx** | ebx | bx | bl | bh | Base register | **Callee-saved** |
+| **rcx** | ecx | cx | cl | ch | 4th argument, counter | Caller-saved |
+| **rdx** | edx | dx | dl | dh | 3rd argument, data | Caller-saved |
+| **rsi** | esi | si | sil | - | 2nd argument, source index | Caller-saved |
+| **rdi** | edi | di | dil | - | 1st argument, destination index | Caller-saved |
+| **rbp** | ebp | bp | bpl | - | Frame/base pointer | **Callee-saved** |
+| **rsp** | esp | sp | spl | - | Stack pointer | **Special** |
+| **r8** | r8d | r8w | r8b | - | 5th argument | Caller-saved |
+| **r9** | r9d | r9w | r9b | - | 6th argument | Caller-saved |
+| **r10** | r10d | r10w | r10b | - | General purpose | Caller-saved |
+| **r11** | r11d | r11w | r11b | - | General purpose | Caller-saved |
+| **r12** | r12d | r12w | r12b | - | General purpose | **Callee-saved** |
+| **r13** | r13d | r13w | r13b | - | General purpose | **Callee-saved** |
+| **r14** | r14d | r14w | r14b | - | General purpose | **Callee-saved** |
+| **r15** | r15d | r15w | r15b | - | General purpose | **Callee-saved** |
+
+**Notes:**
+- **Callee-saved** registers (rbx, rbp, r12-r15) must be preserved if used
+- **Caller-saved** registers can be freely modified
+- **rsp** always points to the stack top
+- **rip** is the instruction pointer (program counter)
+
 ## Calling conventions - what are they?
 
 On 64-bit x86-64 (which I am targeting with `-f elf64`), the **calling convention** defines:
@@ -94,7 +124,7 @@ The `ar rcs` command:
 I will rewrite the following C functions in assembly:
 
 - strlen (man 3 strlen)
-- my_strcpy (man 3 my_strcpy)
+- strcpy (man 3 strcpy)
 - strcmp (man 3 strcmp)
 - write (man 2 write)
 - read (man 2 read)
@@ -110,7 +140,7 @@ typedef struct s_list {
 ```
 And as bonus:
 
-- ft_atoi_base - converts an integer to different bases
+- ft_atoi_base - converts a string to integer, can use different bases
 - ft_list_push_front
 - ft_list_size 
 - ft_list_sort 
@@ -184,7 +214,7 @@ cmp rax, 0
 add rsi, 1
 ```
 
-Since you're using NASM with `-f elf64`, you're already writing Intel syntax by default. This is generally clearer and easier to read than AT&T.Since you're using NASM with `-f elf64`, you're already writing Intel syntax by default. This is generally clearer and easier to read than AT&T.
+Since you're using NASM with `-f elf64`, you're already writing Intel syntax by default. This is generally clearer and easier to read than AT&T.
 
 ## Starting with my version of strlen
 
@@ -236,16 +266,19 @@ Minimal NASM-compatible code for `strlen`:
 
 ```nasm
 section .text
-global strlen
-strlen:
-	xor rax, rax            ; Initialize counter
+global ft_strlen
+
+ft_strlen:
+    xor rax, rax            ; Initialize counter 'rax' to 0
+
 .loop:
-	cmp byte [rdi + rax], 0 ; Compare character at s[rax]
-	je .end                 ; If null terminator, end
-	inc rax                 ; Increment counter
-	jmp .loop               ; Repeat
+    cmp byte [rdi + rax], 0 ; Compare the character at s[rax] with the null terminator
+    je .end                 ; If it's the end of the string, jump to .end
+    inc rax                 ; Otherwise, increment the counter
+    jmp .loop               ; Repeat the loop
+
 .end:
-	ret                     ; Return count in rax
+    ret                     ; Return the count in 'rax'
 ```
 Note: No NULL pointer check, matching the original `strlen` behavior.
 
@@ -280,8 +313,7 @@ Then `je` (jump if equal) checks the **ZF flag**:
 
 So `cmp` sets multiple CPU flags based on the arithmetic result, and then conditional jumps like `je`, `jg`, `jl`, etc. check different combinations of these flags.
 
-The leaq instruction does not alter any condition codes, since it is intended
-to be used in address computations.
+The leaq instruction does not alter any condition codes, since it is intended to be used in address computations.
 
 ## strcpy
 
@@ -747,35 +779,6 @@ instruction pushes an address A onto the stack and sets the PC to the beginning
 of Q. The pushed address A is referred to as the return address and is computed
 as the address of the instruction immediately following the call instruction. The
 counterpart instruction ret pops an address A off the stack and sets the PC to A.
-
-## x86-64 Register Reference Table
-
-Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
-
-| 64-bit | 32-bit | 16-bit | 8-bit Low | 8-bit High | Purpose | Calling Convention |
-|--------|--------|--------|-----------|------------|---------|-------------------|
-| **rax** | eax | ax | al | ah | Return value, accumulator | Caller-saved |
-| **rbx** | ebx | bx | bl | bh | Base register | **Callee-saved** |
-| **rcx** | ecx | cx | cl | ch | 4th argument, counter | Caller-saved |
-| **rdx** | edx | dx | dl | dh | 3rd argument, data | Caller-saved |
-| **rsi** | esi | si | sil | - | 2nd argument, source index | Caller-saved |
-| **rdi** | edi | di | dil | - | 1st argument, destination index | Caller-saved |
-| **rbp** | ebp | bp | bpl | - | Frame/base pointer | **Callee-saved** |
-| **rsp** | esp | sp | spl | - | Stack pointer | **Special** |
-| **r8** | r8d | r8w | r8b | - | 5th argument | Caller-saved |
-| **r9** | r9d | r9w | r9b | - | 6th argument | Caller-saved |
-| **r10** | r10d | r10w | r10b | - | General purpose | Caller-saved |
-| **r11** | r11d | r11w | r11b | - | General purpose | Caller-saved |
-| **r12** | r12d | r12w | r12b | - | General purpose | **Callee-saved** |
-| **r13** | r13d | r13w | r13b | - | General purpose | **Callee-saved** |
-| **r14** | r14d | r14w | r14b | - | General purpose | **Callee-saved** |
-| **r15** | r15d | r15w | r15b | - | General purpose | **Callee-saved** |
-
-**Notes:**
-- **Callee-saved** registers (rbx, rbp, r12-r15) must be preserved if used
-- **Caller-saved** registers can be freely modified
-- **rsp** always points to the stack top
-- **rip** is the instruction pointer (program counter)
 
 ## Quick Reference Notes
 
