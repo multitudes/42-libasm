@@ -4,11 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /*
 Comprehensive test suite for libasm functions
-*/ 
+*/
 
 void test_strlen(void) {
   printf("\n=== FT_STRLEN TESTS ===\n");
@@ -209,146 +208,147 @@ void test_list_functions(void) {
 
 // Comparison function to feed into ft_list_sort
 // Returns > 0 if s1 should come after s2 (standard alphabetical sort)
-int compare_strings(const char *s1, const char *s2) {
-    return strcmp(s1, s2);
-}
+int compare_strings(const char *s1, const char *s2) { return strcmp(s1, s2); }
 
 // Helper function to cleanly print the entire list
 void print_list(t_list *list) {
-    t_list *current = list;
-    int count = 0;
-    if (!current) {
-        printf("    (List is completely empty)\n");
-        return;
-    }
-    while (current) {
-        printf("    Node %d: %s\n", count++, (char *)current->data);
-        current = current->next;
-    }
+  t_list *current = list;
+  int count = 0;
+  if (!current) {
+    printf("    (List is completely empty)\n");
+    return;
+  }
+  while (current) {
+    printf("    Node %d: %s\n", count++, (char *)current->data);
+    current = current->next;
+  }
 }
 
 // Custom free function: frees dynamically allocated string data
 void free_node_data(void *data) {
-    printf("    [free_fct called] Freeing data payload: %s\n", (char *)data);
-    free(data);
+  printf("    [free_fct called] Freeing data payload: %s\n", (char *)data);
+  free(data);
 }
 
 // Helper to push a freshly allocated string onto the list
 void push_heap_string(t_list **list, const char *str) {
-    t_list *new_node = malloc(sizeof(t_list));
-    if (!new_node) return;
-    new_node->data = strdup(str); // Allocates string data on the heap
-    new_node->next = *list;
-    *list = new_node;
+  t_list *new_node = malloc(sizeof(t_list));
+  if (!new_node)
+    return;
+  new_node->data = strdup(str); // Allocates string data on the heap
+  new_node->next = *list;
+  *list = new_node;
 }
 
 void test_list_sort_functions(void) {
-    printf("\n=== LIBASM LIST FUNCTION TESTS ===\n");
+  printf("\n=== LIBASM LIST FUNCTION TESTS ===\n");
 
-    // ----------------------------------------------------
-    printf("\nTest 1: List creation and push_front\n");
-    t_list *list = NULL;
-    
-    // Pushing elements (should arrive in reverse order)
-    ft_list_push_front(&list, "Zebra");
-    ft_list_push_front(&list, "Monkey");
-    ft_list_push_front(&list, "Apple");
+  // ----------------------------------------------------
+  printf("\nTest 1: List creation and push_front\n");
+  t_list *list = NULL;
 
-    printf("  Current List contents (expected: Apple -> Monkey -> Zebra):\n");
-    print_list(list);
+  // Pushing elements (should arrive in reverse order)
+  ft_list_push_front(&list, "Zebra");
+  ft_list_push_front(&list, "Monkey");
+  ft_list_push_front(&list, "Apple");
 
-    // ----------------------------------------------------
-    printf("\nTest 2: List size calculation\n");
-    int size = ft_list_size(list);
-    printf("  Expected size: 3, Got: %d\n", size);
+  printf("  Current List contents (expected: Apple -> Monkey -> Zebra):\n");
+  print_list(list);
 
-    printf("\nTest 3: List size with NULL\n");
-    int empty_size = ft_list_size(NULL);
-    printf("  Expected size: 0, Got: %d\n", empty_size);
+  // ----------------------------------------------------
+  printf("\nTest 2: List size calculation\n");
+  int size = ft_list_size(list);
+  printf("  Expected size: 3, Got: %d\n", size);
 
-    // ----------------------------------------------------
-    printf("\nTest 4: List sorting (ft_list_sort_bonus)\n");
-    
-    // Let's add an unsorted node right to the front to really test it
-    ft_list_push_front(&list, "Banana");
-    printf("  Before Sort:\n");
-    print_list(list);
+  printf("\nTest 3: List size with NULL\n");
+  int empty_size = ft_list_size(NULL);
+  printf("  Expected size: 0, Got: %d\n", empty_size);
 
-    // Call your refactored assembly sort routine
-    ft_list_sort(&list, compare_strings);
+  // ----------------------------------------------------
+  printf("\nTest 4: List sorting (ft_list_sort_bonus)\n");
 
-    printf("  After Sort (expected: Apple -> Banana -> Monkey -> Zebra):\n");
-    print_list(list);
+  // Let's add an unsorted node right to the front to really test it
+  ft_list_push_front(&list, "Banana");
+  printf("  Before Sort:\n");
+  print_list(list);
 
-    // ----------------------------------------------------
-    printf("\nTest 5: Sorting empty and single-element lists\n");
-    t_list *empty_list = NULL;
-    ft_list_sort(&empty_list, compare_strings);
-    printf("  Empty list sort safely passed (didn't crash).\n");
+  // Call your refactored assembly sort routine
+  ft_list_sort(&list, compare_strings);
 
-    t_list *single_list = NULL;
-    ft_list_push_front(&single_list, "Solo Node");
-    ft_list_sort(&single_list, compare_strings);
-    printf("  Single node list sort safely passed:\n");
-    print_list(single_list);
+  printf("  After Sort (expected: Apple -> Banana -> Monkey -> Zebra):\n");
+  print_list(list);
 
-    // ----------------------------------------------------
-    // Cleanup heap memory allocation
-    while (list) {
-        t_list *temp = list;
-        list = list->next;
-        free(temp);
-    }
-    free(single_list);
-    
-    printf("\n=== TESTS COMPLETE ===\n");
+  // ----------------------------------------------------
+  printf("\nTest 5: Sorting empty and single-element lists\n");
+  t_list *empty_list = NULL;
+  ft_list_sort(&empty_list, compare_strings);
+  printf("  Empty list sort safely passed (didn't crash).\n");
+
+  t_list *single_list = NULL;
+  ft_list_push_front(&single_list, "Solo Node");
+  ft_list_sort(&single_list, compare_strings);
+  printf("  Single node list sort safely passed:\n");
+  print_list(single_list);
+
+  // ----------------------------------------------------
+  // Cleanup heap memory allocation
+  while (list) {
+    t_list *temp = list;
+    list = list->next;
+    free(temp);
+  }
+  free(single_list);
+
+  printf("\n=== TESTS COMPLETE ===\n");
 }
 
 void test_list_remove_if(void) {
-    printf("\n=== LIBASM ft_list_remove_if TESTS ===\n");
+  printf("\n=== LIBASM ft_list_remove_if TESTS ===\n");
 
-    t_list *list = NULL;
+  t_list *list = NULL;
 
-    // Populating a list with heap-allocated strings
-    // List order will be: "Target" -> "Apple" -> "Target" -> "Target" -> "Orange" -> NULL
-    push_heap_string(&list, "Orange");
-    push_heap_string(&list, "Target"); // Back-to-back duplicate test
-    push_heap_string(&list, "Target");
-    push_heap_string(&list, "Apple");
-    push_heap_string(&list, "Target"); // Head element test
+  // Populating a list with heap-allocated strings
+  // List order will be: "Target" -> "Apple" -> "Target" -> "Target" -> "Orange"
+  // -> NULL
+  push_heap_string(&list, "Orange");
+  push_heap_string(&list, "Target"); // Back-to-back duplicate test
+  push_heap_string(&list, "Target");
+  push_heap_string(&list, "Apple");
+  push_heap_string(&list, "Target"); // Head element test
 
-    printf("\nInitial List before removal:\n");
-    print_list(list);
+  printf("\nInitial List before removal:\n");
+  print_list(list);
 
-    // ----------------------------------------------------
-    printf("\nExecuting ft_list_remove_if for value: \"Target\"\n");
-    
-    // Call your assembly function
-    // Expecting: "Target" at the head, middle, and back-to-back nodes to be removed and freed.
-    ft_list_remove_if(&list, "Target", compare_strings, free_node_data);
+  // ----------------------------------------------------
+  printf("\nExecuting ft_list_remove_if for value: \"Target\"\n");
 
-    printf("\nList after removal (Expected: Apple -> Orange):\n");
-    print_list(list);
+  // Call your assembly function
+  // Expecting: "Target" at the head, middle, and back-to-back nodes to be
+  // removed and freed.
+  ft_list_remove_if(&list, "Target", compare_strings, free_node_data);
 
-    // ----------------------------------------------------
-    printf("\nTesting edge case: Removing remaining nodes to empty the list\n");
-    
-    printf("Removing \"Apple\"...\n");
-    ft_list_remove_if(&list, "Apple", compare_strings, free_node_data);
-    
-    printf("Removing \"Orange\"...\n");
-    ft_list_remove_if(&list, "Orange", compare_strings, free_node_data);
+  printf("\nList after removal (Expected: Apple -> Orange):\n");
+  print_list(list);
 
-    printf("\nFinal List state:\n");
-    print_list(list);
+  // ----------------------------------------------------
+  printf("\nTesting edge case: Removing remaining nodes to empty the list\n");
 
-    // ----------------------------------------------------
-    printf("\nTesting safety edge case: Passing a NULL list pointer\n");
-    t_list *null_list = NULL;
-    ft_list_remove_if(&null_list, "Anything", compare_strings, free_node_data);
-    printf("  Passed safely without crashing!\n");
+  printf("Removing \"Apple\"...\n");
+  ft_list_remove_if(&list, "Apple", compare_strings, free_node_data);
 
-    printf("\n=== TESTS COMPLETE ===\n");
+  printf("Removing \"Orange\"...\n");
+  ft_list_remove_if(&list, "Orange", compare_strings, free_node_data);
+
+  printf("\nFinal List state:\n");
+  print_list(list);
+
+  // ----------------------------------------------------
+  printf("\nTesting safety edge case: Passing a NULL list pointer\n");
+  t_list *null_list = NULL;
+  ft_list_remove_if(&null_list, "Anything", compare_strings, free_node_data);
+  printf("  Passed safely without crashing!\n");
+
+  printf("\n=== TESTS COMPLETE ===\n");
 }
 
 int main(void) {
