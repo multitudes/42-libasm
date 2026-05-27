@@ -24,7 +24,6 @@ ft_write:
 
 ; --- Error Handling Path ---
 ; The syscall failed. rax contains a negative error code (e.g., -9 for EBADF).
-
 .error:
     neg rax                     ; make it positive
     mov rdi, rax                ; Temporarily save the positive errno in rdi.

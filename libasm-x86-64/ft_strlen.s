@@ -1,6 +1,14 @@
 section .text
 global ft_strlen
 
+; ft_strlen(const char *rdi)
+; ------------------------------------------
+; Behaves like the C strlen() function.
+; Arguments are passed via registers by the caller.
+; the args for ft_strlen are already in the right registers:
+;   rdi: pointer to string to measure
+; returns: length of string (in rax) 
+; No prologue is needed since we don't use the stack or call other functions.
 ft_strlen:
     xor rax, rax            ; Initialize counter 'rax' to 0
 

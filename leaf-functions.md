@@ -74,3 +74,64 @@ ft_is_negative:
 ```
 
 By recognizing when a function is a leaf, you can save your CPU several memory operations per function invocation, making your assembly code incredibly lean and performant!
+
+You are exactly right—system calls behave completely differently from normal function calls, and they **never require a prologue or stack alignment**.
+
+When you write a function like `ft_write` or `ft_read` for your mandatory `libasm` assignments, you can jump straight into the logic, execute the system call, and exit immediately.
+
+---
+
+## Why System Calls Skip the Stack entirely
+
+When your assembly code executes a normal user-space function call, it uses the stack via the `call` opcode:
+
+```nasm
+call    free               ; Drops a return address onto the stack
+
+```
+
+But when you invoke a system call, you do not use the `call` opcode. You use the **`syscall`** instruction:
+
+```nasm
+syscall                    ; Triggers a hardware context switch
+
+```
+
+The `syscall` opcode does not touch your stack pointer (`rsp`) at all. Instead, it triggers a hardware exception that switches the CPU from **User Mode** (Ring 3) to **Kernel Mode** (Ring 0).
+
+Because the kernel runs in a completely separate security privilege layer, it explicitly refuses to trust or use your program's user-space stack. Instead, the CPU instantly swaps out your stack pointer for a protected, internal **Kernel Stack** before executing the system operation. Your function's stack remains entirely untouched.
+
+---
+
+## A Perfect Example: Your `ft_write` Function
+
+Because a system call is inherently a "leaf" operation that handles its own memory space inside the kernel, your entire implementation of a function like `ft_write` requires absolutely zero boilerplate configuration:
+
+```nasm
+section .text
+global ft_write
+extern __errno_location
+
+; ssize_t ft_write(int fd, const void *buf, size_t count);
+ft_write:
+    ; Incoming arguments are already perfectly placed by the caller:
+    ; rdi = fd, rsi = buf, rdx = count
+    
+    mov     rax, 1              ; Write system call number on Linux x86_64 is 1
+    syscall                     ; Jump straight into the Linux Kernel!
+    
+    ; System call exit handling
+    test    rax, rax            ; Check the kernel's return value
+    js      .handle_error       ; If negative, an error occurred!
+    
+    ret                         ; Clear return path (no stack to clean up)
+
+.handle_error:
+    neg     rax                 ; Convert negative error code (e.g., -9) to positive (9)
+    mov     rdi, rax            ; Save error code into rdi
+    call    __errno_location wrt ..plt ; Get the address of errno
+    mov     qword [rax], rdi    ; Set errno = error code
+    mov     rax, -1             ; Return -1 per standard POSIX spec
+    ret
+
+```
