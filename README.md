@@ -86,7 +86,7 @@ The same `make bonus` and `make test` steps run on every push through the GitHub
 
 ### Project layout
 
-```
+```txt
 .
 ├── libasm-x86-64/     # one .s file per function (bonus files end in _bonus.s)
 ├── libasm.h           # prototypes of the mandatory functions
@@ -120,15 +120,15 @@ I wrote the assembly and the test program myself and checked every explanation a
 Topic notes kept alongside this README:
 
 | File | Topic |
-|------|-------|
-| [stack-frame.md](stack-frame.md) | The function prologue (`push rbp` / `mov rbp, rsp`) |
-| [leaf-functions.md](leaf-functions.md) | When a prologue can be skipped; why `syscall` does not use the stack |
-| [ssize_t.md](ssize_t.md) | Why `ssize_t` exists and which header defines it |
-| [linking.md](linking.md) | Static vs dynamic libraries, and where libc lives on macOS |
-| [some_commands.md](some_commands.md) | Inspecting an object file with `xxd`, `objdump`, `readelf`, `nm` |
-| [readme-mac.md](readme-mac.md) | Disassembling on an Apple Silicon Mac (ARM64) |
-| [bitcode.md](bitcode.md) | What the `.bc` file produced by `clang -save-temps` is |
-| [bit.md](bit.md) | Where the word "bit" comes from |
+| ------ | ------- |
+| [stack-frame.md](docs/stack-frame.md) | The function prologue (`push rbp` / `mov rbp, rsp`) |
+| [leaf-functions.md](docs/leaf-functions.md) | When a prologue can be skipped; why `syscall` does not use the stack |
+| [ssize_t.md](docs/ssize_t.md) | Why `ssize_t` exists and which header defines it |
+| [linking.md](docs/linking.md) | Static vs dynamic libraries, and where libc lives on macOS |
+| [some_commands.md](docs/some_commands.md) | Inspecting an object file with `xxd`, `objdump`, `readelf`, `nm` |
+| [readme-mac.md](docs/readme-mac.md) | Disassembling on an Apple Silicon Mac (ARM64) |
+| [bitcode.md](docs/bitcode.md) | What the `.bc` file produced by `clang -save-temps` is |
+| [bit.md](docs/bit.md) | Where the word "bit" comes from |
 
 The rest of this README is my personal study notes from the project.
 
@@ -238,7 +238,7 @@ The project builds a **static library** (`.a` archive) with the `ar` (archiver) 
 
 ```makefile
 $(NAME): $(OBJS)
-	ar rcs $@ $^
+    ar rcs $@ $^
 ```
 
 The `ar rcs` command:

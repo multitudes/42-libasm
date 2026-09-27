@@ -37,6 +37,7 @@ $(NAME): $(OBJS)
 
 clean:
 	rm -f $(OBJS_BASE) $(OBJS_BONUS) 
+	rm -f main.o
 
 fclean: clean
 	rm -f $(NAME)
