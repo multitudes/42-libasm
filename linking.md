@@ -1,56 +1,58 @@
-You have hit on one of the most elegant parts of operating system design.
+# Linking: where do `printf` and `malloc` come from?
 
-The short answer is **no, you don't have thousands of individual `.o` files floating around your Mac.** If Apple gave you a separate `.o` file for every single function (`printf.o`, `malloc.o`, `strlen.o`), your hard drive would be cluttered with millions of tiny files, and linking would be painfully slow.
+My question: when I call `printf` or `malloc`, are there thousands of individual `.o` files on my Mac, one per function?
 
-Instead, those `.o` files are bundled together into massive, highly optimized files called **Libraries**.
+**No.** A separate `.o` file for every function (`printf.o`, `malloc.o`, `strlen.o`) would mean millions of tiny files and slow linking. Instead, object code is bundled into **libraries**.
 
-Here is exactly how those functions are stored on your Mac and how the linker actually grabs them.
-
----
-
-## 1. The Dynamic Library Archive (`.dylib`)
-
-Instead of loose `.o` files, all the standard C functions (defined in headers like `<stdlib.h>`, `<stdio.h>`, `<string.h>`, etc.) are compiled ahead of time by Apple and packed into a single, shared library file called **`libc`**.
-
-On macOS, this combined file is a dynamic library. Historically, it sat at `/usr/lib/libc.dylib`.
-
-> **Mac Specific Twist:** On modern macOS (including your M1 Mac), Apple actually removes the physical `.dylib` files from the filesystem to save space and boost performance. Instead, they compress *all* system libraries into a single, massive, hidden memory image called the **dyld shared cache**. The linker behaves exactly as if the files are there, but the operating system handles it invisibly under the hood.
+This note is about macOS, where I was experimenting. The project itself targets Linux, where the equivalents are `libc.so.6` (glibc) and `.a` / `.so` files.
 
 ---
 
-## 2. How the Linker Handles It: Static vs. Dynamic
+## 1. The C library on macOS
 
-When you compile your 42 `libasm` project, you will likely create a **Static Library** (`libasm.a`). It is worth understanding the difference between how your library works versus how `printf` works.
+The standard C functions (declared in headers like `<stdlib.h>`, `<stdio.h>`, `<string.h>`) are compiled ahead of time by Apple and shipped in a dynamic library. On macOS, libc is part of **`libSystem.dylib`**, which every program links against automatically. `/usr/lib/libc.dylib` historically existed as a name for it.
 
-### Dynamic Linking (How `printf` works)
+> **Mac-specific twist:** since macOS 11 (Big Sur), the system libraries are no longer stored as separate `.dylib` files on disk. They are combined into one large prebuilt file, the **dyld shared cache**. The linker still behaves as if the libraries were there (it reads small `.tbd` stub files from the SDK), and at runtime the dynamic loader maps the code from the cache.
 
-When the linker sees you called `printf`, it doesn't actually copy the `printf` machine code into your `a.out` executable.
+---
 
-Instead, it leaves a **"pointer" or a placeholder** inside your binary that says: *"Hey macOS, when this program runs, look up the `printf` function inside the system's shared cache."*
+## 2. Static vs Dynamic Linking
 
-* **Result:** Your final `a.out` file stays tiny.
-* **Bonus:** If Apple updates `printf` tomorrow to be 10% faster or fix a security bug, your program automatically gets the upgrade without you needing to recompile it.
+For the 42 `libasm` project you build a **static library** (`libasm.a`). It's worth understanding how it differs from the way `printf` is linked.
 
-### Static Linking (How your `libasm.a` will work)
+### Dynamic Linking (how `printf` works)
 
-For your 42 project, you will use the `ar` (archive) command to bundle your assembly object files (`ft_strlen.o`, `ft_strcpy.o`) into a static library named `libasm.a`. A `.a` file is essentially just a `.zip` file of `.o` files.
+When the linker sees a call to `printf`, it does not copy `printf`'s machine code into your executable.
 
-When a user links against your `libasm.a`, the linker **does** physically extract the machine code from your `.o` files and copies it directly into their final executable.
+Instead, it leaves a **placeholder** in your binary that says: "when this program starts, look up `printf` in the system's C library."
 
-## Summary of the Pipeline
+* **Result:** your executable stays small.
+* **Bonus:** if Apple fixes a bug in `printf` or makes it faster, your program benefits without being recompiled.
 
-To tie it all together, here is the mental map of what is on your Mac:
+### Static Linking (how `libasm.a` works)
+
+For the project you use the `ar` (archive) command to bundle the assembled objects (`ft_strlen.o`, `ft_strcpy.o`, ...) into `libasm.a`. A `.a` file is a simple archive of `.o` files plus an index of the symbols they define, similar in spirit to a `.zip` file without compression.
+
+When a program is linked against `libasm.a`, the linker copies the machine code of the objects it actually needs directly into the final executable.
+
+---
+
+## Summary
 
 | Component | What it is | Where it lives | Purpose |
 | --- | --- | --- | --- |
-| **Headers** (`.h`) | Plain text blueprints | `/Library/Developer/...` | Tells the *compiler* that `printf` exists and what arguments it takes so your code passes syntax checks. |
-| **Libraries** (`.dylib` / Cache) | Pre-compiled machine code | System shared cache | Contains the actual *hardware instructions* for `printf` that the *linker* maps to your executable. |
+| **Headers** (`.h`) | Plain-text declarations | In the SDK, e.g. `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include` | Tell the *compiler* that `printf` exists and what arguments it takes |
+| **Libraries** (`.dylib` / shared cache) | Precompiled machine code | The dyld shared cache | Contain the actual instructions for `printf`, which the *dynamic loader* maps into your program at runtime |
 
+---
 
-## the registers
+## Aside: the memory hierarchy
 
-Memory Type,Location,Speed (Latency),Average Size,Technology Used
-Registers,Inside the CPU Core,<0.5 nanoseconds (Instant),~1 to 2 Kilobytes total,Flip-Flops (Transistors)
-CPU Cache (L1/L2/L3),Right next to the Core,~1 to 15 nanoseconds,"Megabytes (e.g., 16MB–96MB)",SRAM (Static RAM)
-System RAM,Connected via Bus,~60 to 100 nanoseconds,"Gigabytes (e.g., 8GB–64GB)",DRAM (Dynamic RAM)
-SSD / Hard Drive,Connected via PCIe,"~50,000+ nanoseconds",Terabytes,NAND Flash Memory
+Why registers matter so much in assembly: they are by far the fastest storage. Rough, typical figures:
+
+| Memory type | Location | Latency | Typical size | Technology |
+| --- | --- | --- | --- | --- |
+| Registers | Inside the CPU core | < 1 ns (within a clock cycle) | A few KB in total | Flip-flops (transistors) |
+| CPU cache (L1/L2/L3) | On the CPU chip, next to the cores | ~1 to 15 ns | Up to tens of MB | SRAM (static RAM) |
+| System RAM | Connected via the memory bus | ~60 to 100 ns | GB (e.g. 8–64 GB) | DRAM (dynamic RAM) |
+| SSD | Connected via PCIe | ~50,000+ ns | Hundreds of GB to TB | NAND flash |

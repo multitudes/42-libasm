@@ -1,14 +1,142 @@
-# Learning Assembly: libasm Project
+*This project has been created as part of the 42 curriculum by lbrusa.*
 
-These are my personal notes for the 42 school libasm project.
+# libasm
 
-**Target Platform:** Linux x86-64 (Intel 64-bit architecture)  
-**Assembler:** NASM (Netwide Assembler) with `-f elf64` flag  
-**Syntax:** Intel assembly syntax
+## Description
 
-## What is assembly
-From the school's subject I quote the definition:
-> An assembly (or assembler) language, often abbreviated asm, is a low-level programming language for a computer, or other programmable device, in which there is a very strong (but often not one-to-one) correspondence between the language and the architecture’s machine code instructions. Each assembly language is specific to a particular computer architecture. In contrast, most high-level programming languages are generally portable across multiple architectures but require interpreting or compiling. Assembly language may also be called symbolic machine code.
+**libasm** ("Assembly yourself!") is a 42 project whose goal is to become familiar with assembly language by re-implementing a few well-known C library functions in 64-bit x86 assembly and packaging them into a static library, `libasm.a`.
+
+**Constraints from the subject:**
+
+- 64-bit assembly, following the System V AMD64 calling convention
+- Separate `.s` files (no inline ASM), assembled with `nasm`
+- Intel syntax (not AT&T)
+- The `-no-pie` compilation flag is forbidden, so the code must be position-independent
+- Syscall errors must be handled and `errno` must be set (through `__errno_location` on Linux, `___error` on macOS)
+
+**Mandatory functions:**
+
+| Function | Behaves like |
+|----------|--------------|
+| `ft_strlen` | `man 3 strlen` |
+| `ft_strcpy` | `man 3 strcpy` |
+| `ft_strcmp` | `man 3 strcmp` |
+| `ft_write` | `man 2 write` (sets `errno` on failure) |
+| `ft_read` | `man 2 read` (sets `errno` on failure) |
+| `ft_strdup` | `man 3 strdup` (calls `malloc`, sets `errno` to `ENOMEM` on failure) |
+
+**Bonus functions**, using this linked-list structure:
+
+```c
+typedef struct s_list
+{
+	void          *data;
+	struct s_list *next;
+} t_list;
+```
+
+| Function | Description |
+|----------|-------------|
+| `ft_atoi_base` | Converts a string written in a given base to an `int`; returns 0 for an invalid base (fewer than 2 characters, duplicates, `+`, `-` or whitespace) |
+| `ft_list_push_front` | Allocates a new node and puts it at the head of the list |
+| `ft_list_size` | Returns the number of nodes in the list |
+| `ft_list_sort` | Sorts the list in ascending order using a `cmp` function (bubble sort, swapping the `data` pointers) |
+| `ft_list_remove_if` | Removes every node whose data makes `cmp(data, data_ref)` return 0, freeing the data with `free_fct` and the node with `free` |
+
+**Target platform:** Linux x86-64, NASM with `-f elf64`, Intel syntax.
+
+## Instructions
+
+### Requirements
+
+- A Linux x86-64 machine (or VM/container). The code uses Linux syscall numbers, `__errno_location` and the ELF64 format, so it does not build natively on macOS.
+- `nasm`, `make`, `ar` and a C compiler (`gcc` or `cc`)
+
+On Debian or Ubuntu:
+
+```bash
+sudo apt-get install nasm build-essential
+```
+
+### Build
+
+```bash
+make          # builds the mandatory part into libasm-x86-64/libasm.a
+make bonus    # adds the bonus functions to the same library
+make clean    # removes the object files
+make fclean   # also removes the library and the test binary
+make re       # fclean + all
+```
+
+### Test
+
+`main.c` is a test program that calls every function (mandatory and bonus) and prints the expected and actual results, including `errno` checks for `ft_read`, `ft_write` and `ft_strdup`.
+
+```bash
+make test     # builds the bonus library, compiles main.c against it, then runs ./test
+```
+
+To link the library into your own program:
+
+```bash
+gcc your_main.c -L libasm-x86-64 -lasm -o your_program
+```
+
+The same `make bonus` and `make test` steps run on every push through the GitHub Actions workflow in `.github/workflows/build-and-test.yml`.
+
+### Project layout
+
+```
+.
+├── libasm-x86-64/     # one .s file per function (bonus files end in _bonus.s)
+├── libasm.h           # prototypes of the mandatory functions
+├── libasm_bonus.h     # t_list and prototypes of the bonus functions
+├── main.c             # test program
+├── makefile
+├── annotate_elf.sh    # hex dump of an object file, labelled by ELF section
+└── *.md               # study notes (see "Further notes" below)
+```
+
+## Resources
+
+- [Computer Systems: A Programmer's Perspective (CS:APP)](https://csapp.cs.cmu.edu/), Bryant and O'Hallaron, Carnegie Mellon. Chapter 3 (machine-level representation of programs) is the source of several examples below.
+- [Linux System Call Table for x86-64](https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/)
+- [NASM documentation](https://www.nasm.us/docs.php)
+- [System V AMD64 ABI](https://gitlab.com/x86-psABIs/x86-64-ABI)
+- Man pages: `strlen(3)`, `strcpy(3)`, `strcmp(3)`, `strdup(3)`, `read(2)`, `write(2)`, `errno(3)`
+
+### Use of AI
+
+I used AI assistants (chat assistants and the Cursor editor) as a study partner and reviewer:
+
+- **Explanations:** asking about concepts while learning, such as the calling convention, stack alignment before `call`, PIE and the PLT, the ELF64 layout of an object file, LLVM bitcode, and the history of `ssize_t`. Several of the Markdown notes in this repository are edited versions of those conversations.
+- **Review:** asking for feedback on my assembly code (register preservation, stack alignment, `errno` handling) and help debugging segmentation faults.
+- **Documentation:** proofreading and formatting this README and the notes.
+
+I wrote the assembly and the test program myself and checked every explanation against the resources above and by running the code.
+
+## Further notes
+
+Topic notes kept alongside this README:
+
+| File | Topic |
+|------|-------|
+| [stack-frame.md](stack-frame.md) | The function prologue (`push rbp` / `mov rbp, rsp`) |
+| [leaf-functions.md](leaf-functions.md) | When a prologue can be skipped; why `syscall` does not use the stack |
+| [ssize_t.md](ssize_t.md) | Why `ssize_t` exists and which header defines it |
+| [linking.md](linking.md) | Static vs dynamic libraries, and where libc lives on macOS |
+| [some_commands.md](some_commands.md) | Inspecting an object file with `xxd`, `objdump`, `readelf`, `nm` |
+| [readme-mac.md](readme-mac.md) | Disassembling on an Apple Silicon Mac (ARM64) |
+| [bitcode.md](bitcode.md) | What the `.bc` file produced by `clang -save-temps` is |
+| [bit.md](bit.md) | Where the word "bit" comes from |
+
+The rest of this README is my personal study notes from the project.
+
+## What is assembly?
+
+The subject defines it as:
+
+> An assembly (or assembler) language, often abbreviated asm, is a low-level programming language for a computer, or other programmable device, in which there is a very strong (but often not one-to-one) correspondence between the language and the architecture's machine code instructions. Each assembly language is specific to a particular computer architecture. In contrast, most high-level programming languages are generally portable across multiple architectures but require interpreting or compiling. Assembly language may also be called symbolic machine code.
 
 ## What is ELF64?
 
@@ -19,20 +147,19 @@ From the school's subject I quote the definition:
 - **Shared libraries** (`.so`) - Dynamic libraries
 - **Core dumps** - Memory snapshots for debugging
 
-When you use `nasm -f elf64`, you're telling NASM to generate 64-bit object files in ELF format that can be linked with other object files and libraries on Linux x86-64 systems.
+`nasm -f elf64` tells NASM to generate 64-bit ELF object files that can be linked with other object files and libraries on Linux x86-64.
 
-**Other formats:**
+**Other NASM output formats:**
 
 - `elf32` - 32-bit ELF (for x86, not x86-64)
 - `macho64` - macOS 64-bit format (not used in this project)
 - `win64` - Windows 64-bit format (not used in this project)
 
-For this project, all `.s` assembly files are assembled with `nasm -f elf64` to produce `.o` object files, which are then archived into a static library (`.a`) or linked into an executable.
-
+In this project every `.s` file is assembled with `nasm -f elf64` into a `.o` file, and the objects are archived into the static library `libasm.a`.
 
 ## x86-64 Register Reference Table
 
-Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
+Each 64-bit register and its 32-bit, 16-bit and 8-bit parts:
 
 | 64-bit | 32-bit | 16-bit | 8-bit Low | 8-bit High | Purpose | Calling Convention |
 |--------|--------|--------|-----------|------------|---------|-------------------|
@@ -54,21 +181,22 @@ Complete register breakdown showing 64-bit, 32-bit, 16-bit, and 8-bit portions:
 | **r15** | r15d | r15w | r15b | - | General purpose | **Callee-saved** |
 
 **Notes:**
-- **Callee-saved** registers (rbx, rbp, r12-r15) must be preserved if used
-- **Caller-saved** registers can be freely modified
-- **rsp** always points to the stack top
+
+- **Callee-saved** registers (rbx, rbp, r12-r15) must be saved and restored by a function that uses them
+- **Caller-saved** registers can be freely modified by a function, so the caller cannot expect them to survive a `call`
+- **rsp** always points to the top of the stack
 - **rip** is the instruction pointer (program counter)
 
 ## Calling conventions - what are they?
 
-On 64-bit x86-64 (which I am targeting with `-f elf64`), the **calling convention** defines:
+On x86-64 Linux (the System V AMD64 ABI), the **calling convention** defines:
 
 1. **How arguments are passed to functions:**
    - First 6 integer/pointer args: `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`
    - Extra args go on the stack
 
 2. **How return values come back:**
-   - Integer results in `rax`
+   - Integer and pointer results in `rax`
 
 3. **Which registers you must preserve:**
    - If you use `rbx`, `rbp`, `r12-r15`, you must save/restore them
@@ -81,19 +209,18 @@ On 64-bit x86-64 (which I am targeting with `-f elf64`), the **calling conventio
 
 - Argument `s` comes in `rdi`
 - Return the length in `rax`
-- No need to preserve registers if you don't use them
+- No need to preserve registers if you don't use callee-saved ones
 
 **Example for `strcmp(const char *s1, const char *s2)`:**
 
 - First arg in `rdi`, second in `rsi`
-- Return comparison result in `rax`
+- Return the comparison result in `eax` (it's an `int`)
 
-If the assembly functions don't follow this, they won't work correctly with C code that calls them (like your main.c).
+If the assembly functions don't follow this, they won't work correctly with C code that calls them (like `main.c`).
 
 ## Creating a Static Library
 
-I am building a **static library** (`.a` archive) using the `ar` (archiver) command. This library contains my assembly implementations and is linked into my executable at compile time.
-All x86-64 assembly code is written in Intel syntax, specifically for the `nasm` assembler.
+The project builds a **static library** (`.a` archive) with the `ar` (archiver) command. The library contains the assembled objects and is copied into the executable at link time.
 
 **Static Library (`.a`):**
 
@@ -101,7 +228,7 @@ All x86-64 assembly code is written in Intel syntax, specifically for the `nasm`
 - Larger executable size
 - No external dependencies at runtime
 
-**Dynamic Library (`.so` on Linux, `.dll` on Windows):**
+**Dynamic Library (`.so` on Linux, `.dylib` on macOS, `.dll` on Windows):**
 
 - Code remains separate, loaded at runtime
 - Smaller executable size
@@ -117,63 +244,32 @@ $(NAME): $(OBJS)
 The `ar rcs` command:
 
 - `ar` = archiver tool
-- `r` = insert files into archive
+- `r` = insert files into archive (replacing existing ones)
 - `c` = create archive if it doesn't exist
 - `s` = write an index (equivalent to running `ranlib`)
 
-I will rewrite the following C functions in assembly:
+## What is the -no-pie Flag?
 
-- strlen (man 3 strlen)
-- strcpy (man 3 strcpy)
-- strcmp (man 3 strcmp)
-- write (man 2 write)
-- read (man 2 read)
-- strdup (man 3 strdup, I will call malloc)
+The `-no-pie` flag disables Position Independent Executable (PIE) generation. By default, modern compilers produce PIE binaries, which can be loaded at random memory addresses for security (ASLR).
 
- I will use this struct for the linked list functions:
+With `-no-pie`, the code and data are loaded at fixed addresses. This makes some assembly easier to write (you can use absolute addresses and call libc functions directly), but it reduces security. The subject forbids it, so every call to a libc function goes through the PLT (see [PIE Compatibility](#pie-position-independent-executable-compatibility)).
 
-```c
-typedef struct s_list {
-	void *data;
-	struct s_list *next;
-} t_list;
-```
-And as bonus:
-
-- ft_atoi_base - converts a string to integer, can use different bases
-- ft_list_push_front
-- ft_list_size 
-- ft_list_sort 
-- ft_list_remove_if - remove a node if a compare function says the node is same
-
-Error handling:
-
-- Check for errors during syscalls and handle them properly
-- Set the variable `errno` as needed
-- Call the external `__errno_location` (or `___error` on some systems)
-
-## What is the --no-pie Flag?
-
-The `--no-pie` compilation flag disables Position Independent Executable (PIE) generation. By default, modern compilers produce PIE binaries, which can be loaded at random memory addresses for security (ASLR).
-
-If you use `--no-pie`, the binary is not position-independent, meaning its code and data are loaded at fixed addresses. This can make certain assembly code easier to write, especially when using absolute addresses, but it reduces security and is not allowed in many coding standards.
-
-## ATT vs Intel Assembly Formats
+## AT&T vs Intel Assembly Formats
 
 In the book "Computer Systems: A Programmer's Perspective" they write:
-> In our presentation, we show assembly code in ATT format (named after AT&T, the company that operated Bell Laboratories for many years), the default format for gcc, objdump, and the other tools we will consider.  
-Other programming tools, including those from Microsoft as well as the documentation from Intel, show assembly code in Intel format. The two formats differ in a number of ways. As an example, gcc can generate code in Intel format for the sum function using the following command line:
-```bash
-gcc -Og -S -masm=intel mstore.c
-```
+
+> In our presentation, we show assembly code in ATT format (named after AT&T, the company that operated Bell Laboratories for many years), the default format for gcc, objdump, and the other tools we will consider. Other programming tools, including those from Microsoft as well as the documentation from Intel, show assembly code in Intel format. The two formats differ in a number of ways. As an example, gcc can generate code in Intel format for the sum function using the following command line:
+>
+> `gcc -Og -S -masm=intel mstore.c`
+>
 > The Intel and ATT formats differ in the following ways:
+>
+> - The Intel code omits the size designation suffixes. We see instruction push and mov instead of pushq and movq.
+> - The Intel code omits the '%' character in front of register names, using rbx instead of %rbx.
+> - The Intel code has a different way of describing locations in memory—for example, QWORD PTR [rbx] rather than (%rbx).
+> - Instructions with multiple operands list them in the reverse order. This can be very confusing when switching between the two formats.
 
->- The Intel code omits the size designation suffixes. We see instruction push and mov instead of pushq and movq.
->- The Intel code omits the ‘%’ character in front of register names, using rbx instead of %rbx.
->- The Intel code has a different way of describing locations in memory—for example, QWORD PTR [rbx] rather than (%rbx).
->- Instructions with multiple operands list them in the reverse order. This can be very confusing when switching between the two formats.
-
-Intel syntax is an assembly language notation style used in NASM. Here are the key differences from AT&T syntax:
+NASM uses Intel syntax. The key differences from AT&T:
 
 **Operand Order:**
 
@@ -197,24 +293,19 @@ Intel syntax is an assembly language notation style used in NASM. Here are the k
 
 **Size Directives:**
 
-- Intel: `mov qword [rax], 0` (size keyword before bracket)
-- AT&T: `movq $0, (%rax)` (suffix on instruction: b/w/l/q)
-
-**Instruction Suffixes:**
-
-- Intel: No suffix needed; size is explicit
-- AT&T: `movq`, `movl`, `movw`, `movb` (q/l/w/b = quad/long/word/byte)
+- Intel: `mov qword [rax], 0` (size keyword before the bracket)
+- AT&T: `movq $0, (%rax)` (suffix on the instruction: b/w/l/q)
 
 **Example:**
 
 ```nasm
-; Intel syntax (NASM default)
+; Intel syntax (NASM)
 mov rax, [rdi + 1]
 cmp rax, 0
 add rsi, 1
 ```
 
-Since you're using NASM with `-f elf64`, you're already writing Intel syntax by default. This is generally clearer and easier to read than AT&T.
+NASM only accepts Intel syntax, so there is nothing to switch. It is generally easier to read than AT&T.
 
 ## Starting with my version of strlen
 
@@ -232,18 +323,19 @@ size_t strlen(const char *s) {
 }
 ```
 
-Note: Like the original `strlen`, this does not check for NULL pointers and will fail with invalid input.
+Note: this C version checks for a NULL pointer (the `testq %rdi, %rdi` in the output below). The real `strlen`, and my `ft_strlen`, do not: passing NULL is undefined behavior and crashes.
 
-Compile with:
+Compile to assembly with:
+
 ```bash
 gcc -Og -S strlen.c
 ```
 
-The `-Og` option disables optimizations for easier reading.
+`-Og` applies only optimizations that keep the generated code close to the source, which makes it easier to read than `-O2`.
 
-Essential ATT-style assembly:
+Essential AT&T-style output:
 
-```assembly
+```gas
 .text          # Executable code section
 .globl strlen  # Function visible to linker
 strlen:
@@ -262,7 +354,7 @@ strlen:
 
 ## NASM Style
 
-Minimal NASM-compatible code for `strlen`:
+Minimal NASM code for `strlen` (this is `libasm-x86-64/ft_strlen.s`):
 
 ```nasm
 section .text
@@ -280,69 +372,65 @@ ft_strlen:
 .end:
     ret                     ; Return the count in 'rax'
 ```
-Note: No NULL pointer check, matching the original `strlen` behavior.
+
+No NULL pointer check, matching the original `strlen` behavior.
 
 ## NASM vs GCC
 
-NASM (Netwide Assembler) is a standalone assembler for x86 and x86-64 architectures, using Intel syntax. GCC uses the GNU assembler (GAS), which defaults to AT&T syntax.
+NASM (Netwide Assembler) is a standalone assembler for x86 and x86-64 that uses Intel syntax. GCC hands its output to the GNU assembler (GAS), which defaults to AT&T syntax.
 
 **Key differences:**
 
-- NASM: explicit section/global declarations, strict syntax
-- GCC/GAS: AT&T syntax, more high-level features and debugging info
+- NASM: explicit `section`/`global` declarations, strict syntax, its own macro language
+- GAS: AT&T syntax by default (Intel with `.intel_syntax`), designed as the back end of GCC, emits debugging directives from the compiler
 
 ## cmp
 
-It sets **multiple flags** in the FLAGS register:
+`cmp` subtracts its second operand from the first, throws the result away, and sets **several flags** in the FLAGS register:
 
-```assembly
+```nasm
 cmp byte [rdi + rax], 0
 ```
 
-This does: `[rdi + rax] - 0` and sets:
+This computes `[rdi + rax] - 0` and sets:
 
-- **ZF** (Zero Flag) = 1 if result is zero (operands are equal)
-- **SF** (Sign Flag) = 1 if result is negative
-- **CF** (Carry Flag) = 1 if unsigned underflow
-- **OF** (Overflow Flag) = 1 if signed overflow
+- **ZF** (Zero Flag) = 1 if the result is zero (operands are equal)
+- **SF** (Sign Flag) = 1 if the result is negative
+- **CF** (Carry Flag) = 1 if an unsigned borrow occurred
+- **OF** (Overflow Flag) = 1 if a signed overflow occurred
 
 Then `je` (jump if equal) checks the **ZF flag**:
 
-- If ZF = 1 → the byte equals 0 → jump to `.end`
-- If ZF = 0 → the byte is not 0 → continue to `inc rax`
+- If ZF = 1, the byte equals 0, so jump to `.end`
+- If ZF = 0, the byte is not 0, so continue to `inc rax`
 
-So `cmp` sets multiple CPU flags based on the arithmetic result, and then conditional jumps like `je`, `jg`, `jl`, etc. check different combinations of these flags.
+Conditional jumps like `je`, `jg`, `jl`, etc. each check a different combination of these flags.
 
-The leaq instruction does not alter any condition codes, since it is intended to be used in address computations.
+By contrast, `lea` does not alter any flags, since it is intended for address computations.
 
 ## strcpy
 
-Here you will see `cl`. what is cl?
+`ft_strcpy` uses `cl`. What is `cl`?
 
-`cl` is an 8-bit (1 byte) register. It's the **lower byte** of the `rcx` register.
+`cl` is an 8-bit (1 byte) register: the **lowest byte** of `rcx`.
 
 x86-64 register hierarchy for `rcx`:
 
-```nasm
+```text
 rcx  [63:0]  - full 64-bit register
 ecx  [31:0]  - lower 32 bits
 cx   [15:0]  - lower 16 bits
-cl   [7:0]   - lower 8 bits (byte) ← This is what you're using
+cl   [7:0]   - lower 8 bits (byte) ← This is what ft_strcpy uses
 ch   [15:8]  - second byte (bits 8-15)
 ```
 
-Since `strcpy` copies one **byte** (character) at a time, using `cl` is correct and efficient. You could also use:
+Since `strcpy` copies one **byte** (character) at a time, an 8-bit register is the natural choice. `al` or `dl` would work as well. `bl` would also work, but `rbx` is callee-saved, so the function would have to save and restore it.
 
-- `byte [rsi]` with temporary register
-- Other 8-bit registers like `al`, `bl`, `dl`
-
-Writing to `cl` does **NOT** zero the upper bits of `rcx`. Only the lower 8 bits are modified.
-
-Here's the x86-64 behavior:
+Writing to `cl` does **NOT** zero the upper bits of `rcx`. Only the lower 8 bits are modified:
 
 **8-bit/16-bit registers** - upper bits unchanged:
 
-```asm
+```nasm
 mov rcx, 0x123456789ABCDEF0
 mov cl, 0x42              ; rcx = 0x123456789ABCDE42 (only lower 8 bits changed)
 mov cx, 0x1234            ; rcx = 0x123456789ABC1234 (only lower 16 bits changed)
@@ -350,32 +438,30 @@ mov cx, 0x1234            ; rcx = 0x123456789ABC1234 (only lower 16 bits changed
 
 **32-bit registers** - upper 32 bits are zeroed:
 
-```asm
+```nasm
 mov rcx, 0x123456789ABCDEF0
 mov ecx, 0x42             ; rcx = 0x0000000000000042 (upper 32 bits zeroed!)
 ```
 
 ## Linking and Testing
 
-To compile and link your assembly code:
+To assemble and link a single function by hand:
 
 ```bash
-# Compile C to assembly (ATT style)
+# Compile C to assembly (AT&T style) to see what the compiler does
 gcc -Og -S strlen.c
 
-# Compile main and link object file
-gcc main.c strlen.o -o test_strlen
+# Assemble the NASM version into an object file
+nasm -f elf64 ft_strlen.s -o ft_strlen.o
 
-# For NASM style
-nasm -f elf64 strlen.s -o strlen.o
-
-gcc main.c strlen.o -o test_strlen
+# Compile main and link it with the object file
+gcc main.c ft_strlen.o -o test_strlen
 ./test_strlen
 ```
 
 ## PIE (Position-Independent Executable) Compatibility
 
-PIE-compatible code is much safer. Without PIE (`--no-pie`), your program loads at a fixed address, making it easier for attackers to exploit vulnerabilities. With PIE, the OS can randomize your program's memory location (ASLR), making attacks much harder.
+With PIE, the OS can load the program at a random address on every run (ASLR). Without it, the program always sits at the same fixed address, which makes memory-corruption exploits easier to write.
 
 **Why PIE is safer:**
 
@@ -389,12 +475,13 @@ PIE-compatible code is much safer. Without PIE (`--no-pie`), your program loads 
 	; The 'wrt ..plt' syntax is essential for PIE compatibility.
 	call __errno_location wrt ..plt
 ```
-This uses the Procedure Linkage Table (PLT) to resolve the address at runtime.
+
+This calls through the Procedure Linkage Table (PLT), which the dynamic linker fills with the real address of the function at runtime. The same applies to `malloc` and `free`.
 
 ## Loading 1 Byte vs 8 Bytes
 
-- `mov cl, [r15]` loads 1 byte (8 bits) into the lower part of `rcx`
-- `mov rcx, [r15]` loads 8 bytes (64 bits) into the entire `rcx` register
+- `mov cl, [r15]` loads 1 byte (8 bits) into the lowest byte of `rcx`
+- `mov rcx, [r15]` loads 8 bytes (64 bits) into the whole `rcx` register
 
 The size of the move depends on the register:
 
@@ -405,7 +492,7 @@ The size of the move depends on the register:
 
 ## Reading Data from a Pointer
 
-NASM size specifiers:
+When the size can't be inferred from a register (for example when storing an immediate), you need a NASM size specifier:
 
 - `byte [addr]` = 8 bits (1 byte)
 - `word [addr]` = 16 bits (2 bytes)
@@ -416,18 +503,16 @@ NASM size specifiers:
 - `yword [addr]` = 256 bits (32 bytes)
 - `zword [addr]` = 512 bits (64 bytes)
 
-Example:
+Example from `ft_list_push_front`, filling a new `t_list` node:
 
 ```nasm
-mov qword [rax], rbp    ; store 64-bit data pointer
-mov qword 8[rax], rdx   ; store 64-bit next pointer
+mov qword [rax], r12        ; new_node->data = data  (offset 0)
+mov qword [rax + 8], rdx    ; new_node->next = old head  (offset 8)
 ```
-
-The progression is: `byte` → `word` → `dword` → `qword` → `tword` → `oword` → `yword` → `zword`. 
 
 ## Operand Addressing Modes in NASM Intel Syntax
 
-From the "Computer Systems" book, here are the x86-64 operand addressing modes in NASM Intel syntax (translated from AT&T):
+From the CS:APP book, here are the x86-64 operand addressing modes in NASM Intel syntax (translated from AT&T):
 
 | Type | NASM Intel Form | Example | Description |
 |------|-----------------|---------|-------------|
@@ -448,19 +533,21 @@ From the "Computer Systems" book, here are the x86-64 operand addressing modes i
 - NASM uses `[...]` for memory (AT&T uses parentheses)
 - No `$` prefix on immediates, no `%` on registers
 - Operators within brackets: `+` for addition, `*` for scaling
-- Scaling factor `s` must be 1, 2, 4, or 8
+- The scale factor `s` must be 1, 2, 4, or 8
 
 ## Push and Pop Instructions in NASM Intel Syntax
 
-From the "Computer Systems" book, `push` and `pop` are stack operations. Both work identically in NASM Intel syntax:
+From the CS:APP book, `push` and `pop` are the stack operations.
 
 **AT&T syntax (from the book):**
-```asm
-pushq %rax          ; push 8 bytes from rax onto stack
-popq %rdx           ; pop 8 bytes from stack into rdx
+
+```gas
+pushq %rax          # push 8 bytes from rax onto stack
+popq %rdx           # pop 8 bytes from stack into rdx
 ```
 
 **NASM Intel syntax:**
+
 ```nasm
 push rax            ; push 8 bytes from rax onto stack
 pop rdx             ; pop 8 bytes from stack into rdx
@@ -474,27 +561,27 @@ pop rdx             ; pop 8 bytes from stack into rdx
 | `rdx` | 0 | 0 | 0x123 |
 | `rsp` | 0x108 | 0x100 | 0x108 |
 
-**Stack visualization:**
-```
-Step 1: Initially              Step 2: After push rax        Step 3: After pop rdx
---------                       --------                       --------
-| .... |                       | ....  |                       | ....  |
-| .... |                       | ....  |                       | ....  |
-| .... | ← rsp (0x108)         | ....  |                       | ....  | ← rsp (0x108)
-         Stack top             | 0x123 | ← rsp (0x100)         | 0x123 | 
-  Stack top                     Stack top                      Stack top
+**Stack visualization** (addresses grow upward on the page, the stack grows downward):
+
+```text
+Initially                 After push rax            After pop rdx
+
+|  ....  |                |  ....  |                |  ....  |
+|  ....  | ← rsp (0x108)  |  ....  |                |  ....  | ← rsp (0x108)
+                          | 0x123  | ← rsp (0x100)  | 0x123  |   (still in memory,
+                                                                 but no longer in use)
 ```
 
 **Key points:**
 
-- `push rax` decrements `rsp` by 8 (stack grows downward) and writes `rax` to `[rsp]`
-- `pop rdx` reads from `[rsp]` into `rdx` and increments `rsp` by 8
-- In NASM Intel syntax, no size suffix needed (size determined by register: `push rax` is 64-bit)
-- AT&T uses `pushq`/`popq` to specify 64-bit; NASM infers from the operand
+- `push rax` decrements `rsp` by 8 (the stack grows downward) and writes `rax` to `[rsp]`
+- `pop rdx` reads `[rsp]` into `rdx` and increments `rsp` by 8
+- NASM needs no size suffix: `push rax` is 64-bit because `rax` is
+- AT&T uses `pushq`/`popq` to specify 64-bit
 
 ## Integer Arithmetic Operations in NASM Intel Syntax
 
-Common x86-64 integer arithmetic and logical operations (from the CS:APP book Figure 3.10):
+Common x86-64 integer arithmetic and logical operations (from CS:APP Figure 3.10):
 
 | Instruction | NASM Syntax | Effect | Description |
 |-------------|------------|--------|-------------|
@@ -515,34 +602,38 @@ Common x86-64 integer arithmetic and logical operations (from the CS:APP book Fi
 | **shr** | `shr D, k` | D ← D >>L k | Logical right shift |
 
 **Examples:**
+
 ```nasm
-lea rax, [rdi + 8]      ; rax gets the address of rdi + 8
+lea rax, [rdi + 8]      ; rax ← rdi + 8 (no memory access)
 inc rax                 ; rax ← rax + 1
 sub rax, rbx            ; rax ← rax - rbx
 imul rax, rcx           ; rax ← rax * rcx
-and rax, 0xfff          ; rax ← rax & 0xfff (mask lower 12 bits)
+and rax, 0xfff          ; rax ← rax & 0xfff (keep the lower 12 bits)
 sal rax, 3              ; rax ← rax << 3 (multiply by 8)
 sar rax, 2              ; rax ← rax >> 2 (arithmetic right shift)
 ```
 
 ## Load Effective Address (LEA) Examples in NASM Intel Syntax
 
-The `lea` (load effective address) instruction is powerful for computing addresses and simple arithmetic:
+`lea` (load effective address) is useful for computing addresses and for simple arithmetic:
 
 | NASM Intel Syntax | Result (in rax) |
 |-------------------|-----------------|
 | `lea rax, [rdx + 9]` | rax ← rdx + 9 |
 | `lea rax, [rdx + rbx]` | rax ← rdx + rbx |
-| `lea rax, [rdx + rbx * 3]` | rax ← rdx + rbx × 3 |
+| `lea rax, [rdx + rbx * 4]` | rax ← rdx + rbx × 4 |
 | `lea rax, [rbx * 8 + 2]` | rax ← rbx × 8 + 2 |
 
-**Key advantage:** `lea` performs arithmetic without affecting CPU flags (unlike `add`, `sub`, etc.), making it useful for quick calculations.
+The scale can only be 1, 2, 4 or 8, so `[rdx + rbx * 3]` is not valid.
+
+**Key advantage:** `lea` performs arithmetic without affecting CPU flags (unlike `add`, `sub`, etc.), which makes it handy for quick calculations.
 
 ## LEA in Real Code: Computing Polynomials
 
-Here's a great example from CS:APP showing how a compiler uses `lea` for arithmetic:
+This example from CS:APP shows how a compiler uses `lea` for arithmetic:
 
 **C code:**
+
 ```c
 long scale(long x, long y, long z) {
     long t = x + 4 * y + 12 * z;
@@ -550,94 +641,98 @@ long scale(long x, long y, long z) {
 }
 ```
 
-**Calling convention (x86-64):**
+**Arguments:**
+
 - `rdi` = x (first argument)
 - `rsi` = y (second argument)
 - `rdx` = z (third argument)
 
 **Assembly translation in NASM Intel syntax:**
+
 ```nasm
 scale:
-    lea rax, [rdi + rsi * 4]      ; rax = x + 4*y (first part)
+    lea rax, [rdi + rsi * 4]      ; rax = x + 4*y
     lea rdx, [rdx + rdx * 2]      ; rdx = z + 2*z = 3*z
     lea rax, [rax + rdx * 4]      ; rax = (x + 4*y) + 3*z*4 = x + 4*y + 12*z
     ret
 ```
 
-1. First `lea`: Computes `x + 4*y` using the base+scaled index addressing mode
-2. Second `lea`: Computes `3*z` by computing `z + z*2` 
-3. Third `lea`: Adds the results: `(x + 4*y) + (3*z)*4 = x + 4*y + 12*z`
+1. First `lea`: computes `x + 4*y` using the base + scaled index addressing mode
+2. Second `lea`: computes `3*z` as `z + z*2`
+3. Third `lea`: adds the results: `(x + 4*y) + (3*z)*4 = x + 4*y + 12*z`
 
-The compiler cleverly decomposes `12*z` into `(3*z)*4` to fit within the addressing mode's capabilities. `lea` is ideal here because it performs multiple arithmetic operations (addition and multiplication by powers of 2) in a single instruction without modifying flags.
+The compiler decomposes `12*z` into `(3*z)*4` because a scale of 12 is not allowed.
 
 ```nasm
 lea rdx, [rdx + rdx * 2]
 ```
 
-This does NOT dereference. It just computes the address rdx + rdx*2 and stores that address value in rdx. No memory access happens.
+This does NOT dereference. It just computes the value `rdx + rdx*2` and stores it in `rdx`. No memory access happens.
 
 ## Little-Endian vs Big-Endian
 
 **Endianness** describes how multi-byte values are stored in memory:
 
-- **Little-Endian:** Least significant byte first (low-order bytes at lower addresses)
-- **Big-Endian:** Most significant byte first (high-order bytes at lower addresses)
+- **Little-Endian:** least significant byte first (at the lowest address)
+- **Big-Endian:** most significant byte first (at the lowest address)
 
-**x86-64 is little-endian**, which is why it's important to understand for assembly programming.
+**x86-64 is little-endian.**
 
 ### Example: 64-bit hexadecimal value
 
-Let's store the 64-bit value `0x123456789ABCDEF0` in memory starting at address `0x1000`:
+Storing the 64-bit value `0x123456789ABCDEF0` in memory starting at address `0x1000`:
 
 **Little-Endian (x86-64):**
-```
+
+```text
 Address:  0x1000 0x1001 0x1002 0x1003 0x1004 0x1005 0x1006 0x1007
 Value:    0xF0   0xDE   0xBC   0x9A   0x78   0x56   0x34   0x12
 ```
 
-The 64-bit value is stored **backwards** (LSB first). The lowest byte `0xF0` is at the lowest address.
+The lowest byte `0xF0` is at the lowest address, so the value looks "backwards" in a hex dump.
 
 **Big-Endian:**
-```
+
+```text
 Address:  0x1000 0x1001 0x1002 0x1003 0x1004 0x1005 0x1006 0x1007
 Value:    0x12   0x34   0x56   0x78   0x9A   0xBC   0xDE   0xF0
 ```
 
-The 64-bit value is stored **forwards** (MSB first). The highest byte `0x12` is at the lowest address.
+The highest byte `0x12` is at the lowest address.
 
 ### NASM Assembly Example
 
 ```nasm
-mov qword [rax], 0x123456789ABCDEF0   ; Store the 64-bit value in memory at [rax]
+mov rax, 0x123456789ABCDEF0
+mov qword [rdi], rax          ; store the 64-bit value at [rdi]
 ```
 
-If `rax` points to address `0x1000` (on x86-64 little-endian):
+`mov` can't store a 64-bit immediate directly to memory, hence the detour through `rax`. If `rdi` points to `0x1000`:
 
-- Byte at `[rax + 0]` = `0xF0`
-- Byte at `[rax + 1]` = `0xDE`
-- Byte at `[rax + 2]` = `0xBC`
-- Byte at `[rax + 3]` = `0x9A`
-- Byte at `[rax + 4]` = `0x78`
-- Byte at `[rax + 5]` = `0x56`
-- Byte at `[rax + 6]` = `0x34`
-- Byte at `[rax + 7]` = `0x12`
+- Byte at `[rdi + 0]` = `0xF0`
+- Byte at `[rdi + 1]` = `0xDE`
+- Byte at `[rdi + 2]` = `0xBC`
+- Byte at `[rdi + 3]` = `0x9A`
+- Byte at `[rdi + 4]` = `0x78`
+- Byte at `[rdi + 5]` = `0x56`
+- Byte at `[rdi + 6]` = `0x34`
+- Byte at `[rdi + 7]` = `0x12`
 
 So:
 
-- In register: the value is unchanged, it's 0x123456789ABCDEF0  
-- When extracted as bytes: you get the little-endian byte order.
-- When written to memory: those bytes are stored in little-endian order.
+- In the register, the value is simply `0x123456789ABCDEF0`
+- In memory, its bytes are stored in little-endian order
 
 ### Why This Matters
 
-When manipulating multi-byte values in assembly (especially in struct fields), you must account for endianness:
+When you pick bytes out of a multi-byte value, you must know which byte is which:
 
 ```nasm
 mov rax, 0x123456789ABCDEF0
-mov byte [rdi], al       ; [rdi + 0] = 0xF0
-mov byte [rdi + 1], ah   ; [rdi + 1] = 0xDE
+mov byte [rdi], al       ; [rdi + 0] = 0xF0 (bits 0-7)
+mov byte [rdi + 1], ah   ; [rdi + 1] = 0xDE (bits 8-15)
 
-; better:
+; ah only reaches bits 8-15; for the higher bytes, shift them down into al:
 mov rax, 0x123456789ABCDEF0
 mov byte [rdi], al              ; [rdi + 0] = 0xF0
 shr rax, 8
@@ -647,26 +742,22 @@ mov byte [rdi + 1], al          ; [rdi + 1] = 0xDE
 
 ## The Meaning of 0xFFF
 
-`0xfff` (4095 decimal) is significant in low-level programming:
+`0xfff` (4095 decimal, twelve 1-bits) shows up often in low-level code:
 
 **1. Memory Alignment & Page Boundaries**
 
-- Used as a page size mask for 4KB pages
-- `address & 0xfff` gives offset within a page
-- `address & ~0xfff` gives page-aligned base address
+- Memory pages are usually 4 KB = 4096 = `0x1000` bytes, so `0xfff` is the page-offset mask
+- `address & 0xfff` gives the offset within a page
+- `address & ~0xfff` gives the page-aligned base address
 
-**2. Buffer Overflow & Exploitation**
+**2. Hardware Register Masks**
 
-- Return addresses, stack canaries, heap metadata, shellcode addresses
+- Masking the lower 12 bits is common in MMUs (page tables) and interrupt controllers
 
-**3. Hardware Register Masks**
+**3. Assembly Context**
 
-- Masks out lower 12 bits, common in MMUs and interrupt controllers
-
-**4. Assembly Context**
-
-```assembly
-; Align stack to 16-byte boundary
+```nasm
+; Align stack to 16-byte boundary (clears the lower 4 bits)
 and rsp, 0xfffffffffffffff0
 ; Check if address is page-aligned
 test rdi, 0xfff
@@ -676,29 +767,13 @@ mov rax, rdi
 and rax, 0xfff
 ```
 
-**5. Exploitation Techniques**
+**4. Security and Reverse Engineering**
 
-- ASLR bypass, heap manipulation, format string attacks
+- ASLR randomizes addresses at page granularity, so the lower 12 bits of an address stay the same between runs. That is useful when debugging, and it is also why partial-overwrite exploits target them.
 
-**6. Security Research**
+## My Last Function: `ft_list_remove_if`
 
-- Memory corruption, fuzzing, reverse engineering
-
-`0xfff` is a natural boundary in computer systems, often used for alignment and security analysis.
-
-## My Last Function: `list_remove_if`
-
-This function can be tricky to understand at first. Here is the relevant assembly, compiled from C and adapted for NASM:
-
-```nasm
-lea rax, [rbp + 8]         ; rax = address of prev->next (if prev is not NULL)
-test rbp, rbp              ; test if prev is NULL
-cmove rax, r12             ; if prev is NULL, rax = r12 (address of *begin_list)
-mov rcx, qword [rbx + 8]   ; rcx = current->next
-mov qword [rax], rcx       ; update pointer
-```
-
-This matches the C logic:
+This function can be tricky to understand at first. The key part is unlinking a node, which is different when the node is the head of the list. In C:
 
 ```c
 if (prev)
@@ -707,78 +782,82 @@ else
     *begin_list = current->next;
 ```
 
-Before removing a node, I check if there is a previous node. If not, the node to remove is the head of the list. In assembly, I first calculate the address for `prev->next` and store it in `rax`. If `prev` is NULL, this would be a garbage address, but the conditional move (`cmove`) updates `rax` to the correct address (`*begin_list`). I then update the pointer to skip the node being removed.
-
-### Case 1: `rbp != NULL` (removing a middle or end node)
+In my assembly, `rbx` is the current node and `r12` is the previous node (NULL at the start). `begin_list` was pushed last in the prologue, so it sits at `[rsp]`:
 
 ```nasm
-lea rax, [rbp + 8]      ; rax = address of prev->next
-test rbp, rbp           ; rbp is NOT NULL
-cmove rax, r12          ; does NOT execute (condition false)
-mov qword [rax], rcx    ; prev->next = current->next
+    mov     rcx, qword [rbx + 8]; rcx = current_node->next
+
+    test    r12, r12            ; Is prev_node (r12) NULL?
+    jz      .remove_head        ; If prev is NULL, we are removing the head
+
+    ; Removing a middle/tail node
+    mov     qword [r12 + 8], rcx; prev_node->next = current_node->next
+    jmp     .free_payload
+
+.remove_head:
+    mov     rax, qword [rsp]    ; Recover begin_list (t_list **) from our stack slot
+    mov     qword [rax], rcx    ; *begin_list = current_node->next
 ```
 
-### Case 2: `rbp == NULL` (removing the first node)
+After unlinking, the node's data is freed with `free_fct`, and `current->next` is saved in a scratch register before the node itself is freed with `free`. Reading `current->next` after `free(current)` would be a use-after-free.
+
+### Alternative: a branchless version with `cmove`
+
+When I compiled the C version with optimizations, the compiler avoided the branch with a conditional move. Here `rbp` is `prev` and `r12` holds `begin_list`:
 
 ```nasm
-lea rax, [rbp + 8]      ; rax = 0 + 8 = 8 (garbage address)
-test rbp, rbp           ; rbp IS NULL (zero flag set)
-cmove rax, r12          ; executes! rax = r12 = &(*begin_list)
-mov qword [rax], rcx    ; *begin_list = current->next
+lea rax, [rbp + 8]         ; rax = address of prev->next (garbage if prev is NULL)
+test rbp, rbp              ; is prev NULL?
+cmove rax, r12             ; if prev is NULL, rax = begin_list (address of the head pointer)
+mov rcx, qword [rbx + 8]   ; rcx = current->next
+mov qword [rax], rcx       ; update whichever pointer rax points to
 ```
 
-- When `rbp != NULL`, `rax` keeps the correct address from `lea`.
-- When `rbp == NULL`, `cmove` overwrites `rax` with the correct address (`r12`).
+- When `prev != NULL`, `cmove` does nothing and `rax` keeps `&prev->next` from `lea`.
+- When `prev == NULL`, `lea` computed `0 + 8 = 8`, which is a garbage address, but `cmove` replaces it with `begin_list` before anything is dereferenced.
 
-The initial `lea` result (8) when `rbp` is NULL is garbage, but it is immediately replaced by `cmove` with the proper value. This way, both cases end up with `rax` containing the right address to update, and I avoid any segfaults or undefined behavior.
+Both cases end with `rax` holding the address of the pointer to update. `lea` never touches memory, so computing the garbage address is harmless.
 
 ## SET
 
-The **`set` instruction** sets a single **byte** to 0 or 1 based on CPU condition flags.
+The **`setcc`** instructions set a single **byte** to 0 or 1 based on the CPU flags.
 
 ```c
-int comp(data_t a, data_t b) {
-    // ...compare a and b...
-    // return 1 if a < b, else 0
+int comp(long a, long b) {
+    return a < b;
 }
 ```
 
 ```nasm
 comp:
     cmp rdi, rsi           ; Compare a:b (sets condition flags)
-    setl al                ; Set al to 0 or 1 (1 if a < b)
-    movzx eax, al          ; Zero-extend al to 32-bit eax
+    setl al                ; al = 1 if a < b, else 0
+    movzx eax, al          ; Zero-extend al into eax
     ret
 ```
 
-1. `cmp rdi, rsi` - Compares the values and sets CPU flags
-2. `setl al` - Checks the flags: if "less than" condition is true, sets `al = 1`, else `al = 0`
-3. `movzx eax, al` - Zero-extends the byte result to 32 bits (clears upper bytes)
+1. `cmp rdi, rsi` - compares the values and sets the CPU flags
+2. `setl al` - if the "less than" condition holds, sets `al = 1`, else `al = 0`
+3. `movzx eax, al` - zero-extends the byte to 32 bits (which also clears the upper half of `rax`)
 
-**Common `set` instructions (synonyms):**
+**Common `set` instructions:**
 
 - `sete` - Set if equal (ZF = 1)
 - `setne` - Set if not equal (ZF = 0)
-- `setl` - Set if less (signed) 
+- `setl` - Set if less (signed)
 - `setg` - Set if greater (signed)
-- `setle` - Set if less or equal
-- `setge` - Set if greater or equal
-- `setz` - Set if zero (same as `sete`)
-- `setnz` - Set if not zero (same as `setne`)
+- `setle` - Set if less or equal (signed)
+- `setge` - Set if greater or equal (signed)
+- `setz` - Set if zero (synonym of `sete`)
+- `setnz` - Set if not zero (synonym of `setne`)
 
 Each sets the destination byte to 1 if the condition is true, 0 if false.
 
 ## Calling functions
 
-Passing control from function P to function Q involves simply setting the program
-counter (PC) to the starting address of the code for Q. However, when it later
-comes time for Q to return, the processor must have some record of the code
-location where it should resume the execution of P. This information is recorded
-in x86-64 machines by invoking procedure Q with the instruction call Q. This
-instruction pushes an address A onto the stack and sets the PC to the beginning
-of Q. The pushed address A is referred to as the return address and is computed
-as the address of the instruction immediately following the call instruction. The
-counterpart instruction ret pops an address A off the stack and sets the PC to A.
+From CS:APP:
+
+> Passing control from function P to function Q involves simply setting the program counter (PC) to the starting address of the code for Q. However, when it later comes time for Q to return, the processor must have some record of the code location where it should resume the execution of P. This information is recorded in x86-64 machines by invoking procedure Q with the instruction call Q. This instruction pushes an address A onto the stack and sets the PC to the beginning of Q. The pushed address A is referred to as the return address and is computed as the address of the instruction immediately following the call instruction. The counterpart instruction ret pops an address A off the stack and sets the PC to A.
 
 ## Quick Reference Notes
 
@@ -786,104 +865,78 @@ counterpart instruction ret pops an address A off the stack and sets the PC to A
 
 **RIP** - Program counter (instruction pointer)
 
-**gcc -Og -S main.c** - Compile to assembly with minimal optimization
+**gcc -Og -S main.c** - Compile to assembly with light, debug-friendly optimization
 
-**x86-64 / AMD64:**
-- 64-bit (2002): Core i7, AVX 256-bit
-- 32-bit (1985): i386
-- First 16-bit: 8086 (1978)
+**x86 history:**
 
-**Register Convention:**
+- 1978: 8086, the first 16-bit x86
+- 1985: i386, the first 32-bit x86 (IA-32)
+- 2003: AMD64 (x86-64), the 64-bit extension introduced by AMD with the Opteron and Athlon 64, later adopted by Intel
+
+**Register convention:**
+
 - **6 registers** for integer/pointer arguments: `rdi, rsi, rdx, rcx, r8, r9`
-- **6 float registers** for floating-point: `xmm0-xmm5`
+- **8 registers** for floating-point arguments: `xmm0-xmm7`
 
-**Callee-saved registers** (must preserve): `rbx, rbp, r12-r15`  
+**Callee-saved registers** (must preserve): `rbx, rbp, r12-r15`
 **Caller-saved registers** (can freely modify): `rax, rcx, rdx, rsi, rdi, r8-r11`
 
-**Stack:**
-- Stack pointer: `rsp`
-- **Fast** but **general temp storage**
-- `rbx` is for base addressing
-
-**Register roles:**
-- `r8-r9`: 5th-6th arguments
-- `r10-r11`: Caller-saved, general temp
-- `r12-r15`: Callee-saved, general temp
-
-
 ## strdup and malloc
-It’s a subtle but vital distinction in how the CPU works. When we talk about **stack alignment**, we aren't just talking about the `push` instructions you wrote; we are talking about the **Return Address** that the hardware automatically places on the stack.
+
+`ft_strdup` calls `ft_strlen`, `malloc` and `ft_strcpy`, so it has to care about **stack alignment**. That means counting not only the registers you `push`, but also the **return address** that the `call` instruction places on the stack.
 
 ### The "Hidden" 8 Bytes
 
-When you use the `call` instruction, the CPU does two things in one hardware cycle:
+The `call` instruction does two things:
 
 1. It pushes the address of the *next* instruction (the return address) onto the stack.
 2. It jumps to the function.
 
-So, the moment your code enters `ft_strdup`, the stack pointer (`RSP`) has already moved down by **8 bytes**.
+So the moment execution enters `ft_strdup`, `rsp` has already moved down by **8 bytes**.
 
 ### The Math of the 16-Byte Rule
 
-The System V ABI (the Linux rulebook) says: **"The stack must be 16-byte aligned *before* the `call` instruction is executed."**
+The System V ABI says: **"The stack must be 16-byte aligned *before* the `call` instruction is executed."**
 
-Let’s track your `RSP` relative to 16:
+Tracking `rsp` relative to 16 in `ft_strdup`:
 
-1. **Before `ft_strdup` is called:** Stack is aligned (0 bytes offset).
-2. **`call ft_strdup` happens:** CPU pushes the return address. Stack is now at **8 bytes** offset.
-3. **`push r15`**: You add 8 bytes. Stack is at **16 bytes** offset (Aligned! ✅).
-4. **`push rbx`**: You add 8 bytes. Stack is at **24 bytes** offset (Misaligned! ❌).
-5. **`push r14`**: You add 8 bytes. Stack is at **32 bytes** offset (Aligned! ✅).
+1. **Before `ft_strdup` is called:** the stack is aligned (0 bytes offset).
+2. **`call ft_strdup` happens:** the CPU pushes the return address, so the offset is **8 bytes**.
+3. **`push r15`**: offset **16 bytes** (aligned).
+4. **`push rbx`**: offset **24 bytes** (misaligned).
+5. **`push r14`**: offset **32 bytes** (aligned), so it is safe to `call malloc`.
+
+`r14` is not really needed in the function; it is pushed to restore the alignment. A `sub rsp, 8` would do the same job.
 
 ### What happens if you get it wrong?
 
-If you call `malloc` (or any GLIBC function) while the stack is at a 24-byte or 8-byte offset (misaligned), it might work 99% of the time. But the moment `malloc` tries to use an **SSE/AVX instruction** (which requires data to be aligned to 16 bytes on the stack), your program will crash with a `General Protection Fault`.
+If you call `malloc` (or any glibc function) with a misaligned stack, it may work most of the time. But as soon as the callee uses an SSE instruction that requires 16-byte-aligned stack memory (such as `movaps`), the program crashes with a segmentation fault (the CPU raises a general protection fault).
 
-That is a great question. `test rax, rax` is an assembly "idiom"—a classic trick that every developer uses because it’s faster and smaller than other methods.
+### `test rax, rax`
 
-### How it works
+After `malloc`, `ft_strdup` checks for NULL with `test rax, rax`. This is a classic assembly idiom.
 
-The `test` instruction performs a **bitwise AND** between the two operands. However, unlike the `and` instruction, it **does not store the result** anywhere. It only updates the CPU's **Flags Register**.
+The `test` instruction performs a **bitwise AND** of its two operands but, unlike `and`, **does not store the result**. It only updates the flags.
 
-When you do `test rax, rax`:
+With `test rax, rax`:
 
-1. The CPU looks at `rax & rax`.
-2. Since any number ANDed with itself is just that number ($1 \& 1 = 1$ and $0 \& 0 = 0$), the result is simply the value of `rax`.
-3. The CPU then sets the **Zero Flag (ZF)** based on that result.
+1. The CPU computes `rax & rax`, which is just `rax`.
+2. It sets the **Zero Flag (ZF)** from that result:
+   - **If `rax` is 0**, ZF is set to **1**.
+   - **If `rax` is not 0**, ZF is set to **0**.
 
-* **If `rax` is 0:** The result of the AND is 0, so the **Zero Flag (ZF)** is set to **1**.
-* **If `rax` is NOT 0:** The result is non-zero, so the **Zero Flag (ZF)** is set to **0**.
+**Why `test` instead of `cmp rax, 0`?**
 
-### Why use `test` instead of `cmp`?
+Both give the same result for this check, but `test rax, rax` encodes in 3 bytes versus 4 for `cmp rax, 0`, because it has no immediate operand. It is the idiom compilers emit.
 
-You could technically write `cmp rax, 0`. However:
+Then:
 
-* `cmp rax, 0` requires the CPU to handle an "immediate" value (the `0`), which usually takes more bytes of machine code.
-* `test rax, rax` is a very simple operation for the CPU's logic unit, making it slightly more efficient and compact (usually just 3 bytes of machine code for 64-bit registers).
-
----
-
-### The Flags Register
-
-When you follow up with a jump instruction:
-
-* `je` (Jump if Equal) or `jz` (Jump if Zero) checks if the **Zero Flag is 1**.
-* `jne` (Jump if Not Equal) or `jnz` (Jump if Not Zero) checks if the **Zero Flag is 0**.
-
-In your code:
+- `je` (jump if equal) / `jz` (jump if zero) jumps if **ZF is 1**
+- `jne` / `jnz` jumps if **ZF is 0**
 
 ```nasm
-    test    rax, rax        ; Sets ZF to 1 if RAX is 0
-    je      .malloc_error   ; Jumps if ZF is 1 (meaning malloc returned NULL)
-
+    test    rax, rax        ; ZF = 1 if rax is 0
+    je      .malloc_error   ; jump if malloc returned NULL
 ```
 
-### Fun Fact: `or rax, rax`
-
-You will sometimes see `or rax, rax` used for the same purpose. It also sets the Zero Flag without changing the register's value. However, `test` is the industry standard for "Is this pointer NULL?"
-
-## Resources
-
-[Computer Systems: A Programmer's Perspective - Carnegie Mellon](https://csapp.cs.cmu.edu/)  
-
-[syscalls](https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/)
+You will sometimes see `or rax, rax` used for the same purpose. It also sets ZF without changing the value, but `test` is the standard way to ask "is this pointer NULL?".

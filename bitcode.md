@@ -1,112 +1,66 @@
 # main.bc
 
-That `main.bc` file stands for **Bitcode** (specifically, LLVM Bitcode).
+Running `cc -save-temps main.c` on my Mac leaves a `main.bc` file next to the source. It is **LLVM Bitcode**.
 
-Because you are on a Mac, your default compiler (`cc`) is actually a frontend wrapper for **Clang**, which uses a compiler infrastructure called **LLVM** (Low Level Virtual Machine).
+On macOS, `cc` is Apple's **Clang**, which is built on the **LLVM** compiler infrastructure (the name originally stood for "Low Level Virtual Machine").
 
-While a traditional compiler compiles C code directly into assembly for your specific CPU, modern compilers like Clang do something much more clever. They use an intermediate step.
+A traditional compiler translates C directly into assembly for one specific CPU. Clang goes through an intermediate step instead.
 
 ---
 
 ## The Compilation Pipeline with Bitcode
 
-When you run `cc -save-temps`, the compiler goes through these stages:
+With `-save-temps`, Clang keeps the output of every stage:
 
-1. **`main.c`** (Your source code) $\rightarrow$ *Preprocessor*
-2. **`main.i`** (Expanded C code) $\rightarrow$ *Clang Frontend*
-3. **`main.bc` (LLVM Bitcode)** $\rightarrow$ *LLVM Optimizer*
-4. **`main.s`** (Target Assembly) $\rightarrow$ *Assembler*
-5. **`main.o`** (Machine Object Code) $\rightarrow$ *Linker*
-6. **`a.out`** (Final Executable)
+1. **`main.c`** (your source code) → *preprocessor*
+2. **`main.i`** (preprocessed C code) → *Clang frontend*
+3. **`main.bc`** (LLVM Bitcode) → *LLVM optimizer and code generator*
+4. **`main.s`** (target assembly) → *assembler*
+5. **`main.o`** (machine code object file) → *linker*
+6. **`a.out`** (final executable)
 
 ---
 
 ## What exactly *is* Bitcode?
 
-Bitcode is a universal, hardware-independent **Intermediate Representation (IR)** of your program. It is a dense, binary format of a low-level language that looks like a cross between C and assembly.
+Bitcode is a hardware-independent **Intermediate Representation (IR)** of your program, stored in a dense binary format. The IR itself is a low-level, strongly typed language that looks like a cross between C and assembly, with an unlimited number of virtual registers.
 
-If you want to actually read it, you can't open `main.bc` in a text editor because it's binary. However, you can convert it to human-readable LLVM text (`main.ll`) using a tool from the LLVM suite:
-
-```bash
-llvm-dis main.bc
-
-```
-
-If you open the resulting `main.ll`, you will see code that looks like this:
-
-```llvm
-%struct._opaque_pthread_t = type { i64, %struct.__darwin_pthread_handler_rec*, [8176 x i8] }
-define i32 @main() {
-    %1 = alloca i32, align 4
-    store i32 0, i32* %1, align 4
-    ret i32 0
-}
-
-```
-
----
-
-## Why does Apple and LLVM use Bitcode?
-
-Bitcode provides two massive advantages:
-
-### 1. The $\text{M} \times \text{N}$ Problem (Compiler Efficiency)
-
-Imagine you support 5 programming languages (C, C++, Swift, Rust, Objective-C) and 4 CPU architectures (Intel x86, ARM64, PowerPC, WASM). Without Bitcode, you would need to write 20 separate compilers ($5 \times 4$).
-
-With LLVM, the frontend parser only has to translate the programming language into **Bitcode**. Then, the backend compiler only has to translate **Bitcode** into the specific CPU architecture. If a new CPU comes out (like Apple's M1 ARM64 chip a few years ago), they only need to write *one* new backend that reads Bitcode.
-
-### 2. App Store Optimization
-
-When developers submit iOS or macOS apps to the Apple App Store, Apple often requires them to submit the **Bitcode** version of the app rather than the final machine code.
-
-Why? Because if Apple invents a new, faster CPU instruction or a new chip tomorrow, **they can re-compile your app on their servers** to optimize it for the new phones/Macs without the developer ever having to update or resubmit their source code.
-
-You get that error because Apple hides the raw LLVM development tools inside the Xcode Toolchain rather than exposing them globally to your terminal.
-
-You don't need to download or install anything new—the tool is already sitting on your Mac! You just have to tell `zsh` exactly where to look for it, or use the standard compiler tool to do the translation for you.
-
-Here are the two ways to get it working right now:
-
----
-
-## Method 1: The Quick Way (Use `clang` instead)
-
-Since `clang` is already globally accessible on your Mac, you can actually tell it to take the `.bc` file and output the human-readable LLVM assembly (`.ll`) directly, completely bypassing the need to call `llvm-dis`.
-
-Run this in your terminal:
+Because `main.bc` is binary, a text editor can't show it. Clang can convert it to the human-readable text form of LLVM IR (a `.ll` file):
 
 ```bash
 clang -S -emit-llvm main.bc -o main.ll
-
 ```
 
-This tells Clang: *"Take this bitcode file, compile it only to the Assembly stage (`-S`), but make that assembly the LLVM IR format (`-emit-llvm`), and save it as `main.ll`."*
+This tells Clang: take this bitcode file, stop at the assembly stage (`-S`), but write LLVM IR (`-emit-llvm`) instead of CPU assembly, into `main.ll`.
+
+The standalone LLVM tool for the same job is `llvm-dis main.bc`, but Apple does not ship it with Xcode (`xcrun --find llvm-dis` fails). It comes with a full LLVM install, for example `brew install llvm`.
+
+A minimal `main` looks like this in `main.ll`:
+
+```llvm
+define i32 @main() {
+  %1 = alloca i32, align 4
+  store i32 0, ptr %1, align 4
+  ret i32 0
+}
+```
 
 ---
 
-## Method 2: Unhide Apple's Secret LLVM Tools
+## Why does LLVM use an IR?
 
-If you want to use `llvm-dis` specifically, you can run it by pointing directly to where Apple buries it inside the Xcode Command Line Tools directory.
+### 1. The M × N Problem (Compiler Efficiency)
 
-Run this command:
+Imagine you support 5 programming languages (C, C++, Swift, Rust, Objective-C) and 4 CPU architectures (x86-64, ARM64, PowerPC, WebAssembly). Without a shared IR, you would need 20 separate compilers (5 × 4).
 
-```bash
-$(xcrun --find llvm-dis) main.bc
+With LLVM, each language frontend only has to translate into **LLVM IR**, and each backend only has to translate **LLVM IR** into one CPU architecture: 5 + 4 pieces instead of 5 × 4. When a new CPU appears (like Apple's M1), only *one* new backend is needed for every language to support it.
 
-```
+### 2. Recompiling without the source (historical)
 
-### How that works:
-
-`xcrun --find llvm-dis` is a built-in macOS command that searches Apple’s active developer toolchain directories. It locates the hidden executable, which is usually buried deep inside a path like:
-`/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/llvm-dis`
-
-By wrapping it in `$()`, your terminal finds that hidden path and executes it instantly on your `main.bc` file.
+For a few years, Apple let (and for watchOS and tvOS, required) developers upload iOS, watchOS and tvOS apps to the App Store as bitcode instead of final machine code, so Apple could recompile them for new chips without the developer resubmitting. macOS apps never used this. Apple deprecated bitcode submissions in Xcode 14 (2022), so today `.bc` files mostly matter as a compiler intermediate like the one above.
 
 ---
 
-### What to look for next:
+## What to look for next
 
-Whichever method you choose, you will now have a **`main.ll`** file in your directory. Open it up in VS Code or your favorite text editor.
-
-It is incredibly fascinating to look at—you will see exactly how your C code’s variables, loops, and function calls were stripped down into a strongly-typed, infinite-register intermediate language before the Mac converts it into final hardware assembly!
+Open `main.ll` in your editor. You will see how your C code's variables, loops, and function calls were stripped down into a strongly typed IR with unlimited registers, before the compiler turns it into real hardware assembly in `main.s`.

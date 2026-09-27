@@ -1,27 +1,21 @@
-# why ssize_t
+# Why ssize_t?
 
-I have a c file... I want to study how the compilation works. 
-I do cc -save-temps main.c
-and I get the following error:
-```bash
-./libasm.h:9:1: error: unknown type
-      name 'ssize_t'; did you mean 'size_t'?
+## The error
+
+I wanted to study how compilation works, so I ran `cc -save-temps main.c` on my Mac and got:
+
+```text
+./libasm.h:9:1: error: unknown type name 'ssize_t'; did you mean 'size_t'?
     9 | ssize_t ft_write(int fd, const void *buf, size_t count);
       | ^~~~~~~
       | size_t
 ```
 
-Look closely at your libasm.h:
+The compiler doesn't know what `ssize_t` is.
 
-```c
-ssize_t ft_write(int fd, const void *buf, size_t count);
-```
+`size_t` is part of standard C: it is defined in `<stddef.h>`, and `<stdlib.h>`, `<stdio.h>` and `<string.h>` provide it too. `ssize_t` (signed size) is **not** standard C. It is a POSIX type. On Linux, common headers often pull it in indirectly, so the code happens to compile. On macOS the headers are stricter.
 
-The compiler complains that it doesn’t know what ssize_t is.
-
-Unlike size_t (which is built into standard C via headers like <stdlib.h> or <stddef.h>), ssize_t (signed size) is a POSIX-specific extension. On Linux, sometimes <stdlib.h> or other common headers implicitly pull in ssize_t. On macOS, it is strictly isolated.
-
-To fix this error on your Mac, you simply need to include the header that actually defines ssize_t inside your libasm.h:
+The fix is to include the POSIX header that defines it, in `libasm.h`:
 
 ```c
 #include <sys/types.h>
@@ -29,56 +23,54 @@ To fix this error on your Mac, you simply need to include the header that actual
 #include <unistd.h>
 ```
 
-## history
+`libasm.h` now includes `<unistd.h>`, so the project compiles on both systems.
 
-I don't understand if C languages has been created to build unix operating system, why the return type of a system call could not be included in the language?
+## History
 
-That is a spectacular historical question. You are 100% correct about the history: Dennis Ritchie created the C language at Bell Labs specifically to rewrite the Unix operating system.
+If C was created to build the Unix operating system, why isn't the return type of a system call part of the language?
 
-So, why didn't he just build `ssize_t` directly into the C language from day one?
+The history is right: Dennis Ritchie created C at Bell Labs to rewrite Unix.
 
-The short answer is: **When C and Unix were created in the early 1970s, `ssize_t` didn't exist yet, because the problems it solves didn't exist yet.**
-
-Here is how the evolution of hardware and the separation of powers split C and Unix apart.
+The short answer: **when C and Unix were created in the early 1970s, `ssize_t` didn't exist, because the problem it solves didn't exist yet.**
 
 ---
 
 ## 1. Early Unix was tiny, and `int` was enough
 
-When C was designed for the PDP-11 computer in 1972, it was a 16-bit architecture.
+C was designed on the PDP-11, a 16-bit machine.
 
 * An `int` was 16 bits.
-* The maximum amount of data you could read or write in a single system call was a few kilobytes.
-* Therefore, the original `read()` and `write()` system calls in early Unix didn't use `ssize_t` or `size_t`. They just used regular `int`.
+* A single `read()` or `write()` call only moved small amounts of data.
+* So the original `read()` and `write()` simply took and returned an `int`.
 
-An `int` can be positive (number of bytes read) or negative (`-1` for an error). It worked perfectly. There was absolutely no need for a special type.
-
----
-
-## 2. The 32-bit Explosion and the "Unsigned" Problem
-
-By the late 1970s and 1980s, computers moved to 32-bit architectures. Suddenly, programs could handle massive amounts of memory.
-
-C introduced `unsigned int` (and later `size_t`) so programmers could represent strictly positive numbers up to 4 gigabytes. This was perfect for counting bytes, because you can't read a negative number of bytes.
-
-However, this created a massive dilemma for system calls like `read` and `write`:
-
-* If `write()` returns an **unsigned** `size_t`, it can represent huge file transfers. But how does it return `-1` to signal an error? (In unsigned math, `-1` becomes the largest possible positive number, `4,294,967,295`, which ruins error checking).
-* If `write()` returns a **signed** `int`, it can easily return `-1` for errors, but it cuts your maximum transferable data size exactly in half because one bit is stolen to represent the +/- sign.
-
-To solve this, the IEEE POSIX committee later invented `ssize_t`—a signed type guaranteed to be the exact same bit-size as `size_t`.
+An `int` can be positive (number of bytes transferred) or `-1` (error). There was no need for a special type.
 
 ---
 
-## 3. The Separation of Church and State (Language vs. OS)
+## 2. Bigger machines and the "unsigned" problem
 
-This is the philosophical reason. As C grew, it became bigger than Unix. It started being used to program microcontrollers, Windows PCs, and embedded systems that had *nothing* to do with Unix.
+As computers moved to 32-bit (and later 64-bit) architectures, programs could handle much more memory.
 
-To keep C universal, the creators intentionally separated the **C Language Standard** from the **Operating System Standard**.
+C gained `unsigned` types, and ANSI C (1989) standardized `size_t` as the type for object sizes. It is unsigned, since you can't have a negative number of bytes.
 
-* **The C Language (ISO C):** Defines only what is universally true for *every* computer on earth (loops, math, pointers, `int`, `char`, `size_t`). It deliberately knows nothing about files, hard drives, or internet sockets.
-* **The Operating System (POSIX):** Defines how a specific family of operating systems (Unix, Linux, macOS) talks to hardware. `ssize_t` belongs here because it specifically handles OS-level file I/O operations and error codes.
+That created a dilemma for `read` and `write`:
 
-If the C language forced `ssize_t` into its core compiler, a developer trying to program a microwave or a basic traffic light using C would be forced to carry around overhead for Unix-style file systems that their device doesn't even possess.
+* If they return an **unsigned** `size_t`, how do they return `-1` for an error? In unsigned arithmetic `-1` becomes the largest possible value (`4,294,967,295` with 32 bits), which breaks error checking.
+* If they return a plain signed `int`, the result may be too small to hold the byte count on machines where `size_t` is bigger than `int`.
 
-By keeping `ssize_t` inside `<unistd.h>` (Unix Standard Headers) instead of the compiler itself, C remains the lightweight, universal skeleton, while the OS provides the specific muscles.
+POSIX standardized `ssize_t` to solve this: a signed type with the same width as `size_t`. It can hold `-1` for errors and byte counts up to `SSIZE_MAX`, half of what `size_t` can express. That is why POSIX leaves the result implementation-defined if you ask `read` or `write` for more than `SSIZE_MAX` bytes.
+
+---
+
+## 3. Language vs Operating System
+
+This is the philosophical reason. C became bigger than Unix: it is used to program microcontrollers, Windows PCs, and embedded systems that have nothing to do with Unix.
+
+To keep C universal, the **language standard** was separated from the **operating system standard**:
+
+* **The C language (ISO C):** defines what makes sense on *every* platform: loops, arithmetic, pointers, `int`, `char`, `size_t`. It has only minimal I/O (`FILE *` streams) and knows nothing about file descriptors or system calls.
+* **The operating system interface (POSIX):** defines how Unix-like systems (Linux, macOS, the BSDs) expose system services. `ssize_t` belongs here because it is tied to OS-level I/O calls and their error convention.
+
+A programmer writing C for a microwave or a traffic light shouldn't have to care about Unix-style file I/O that their device doesn't have.
+
+So `ssize_t` lives in POSIX headers like `<sys/types.h>` and `<unistd.h>` (Unix standard header), not in the core language. C stays a lightweight, universal skeleton, and the OS provides the specific muscles.
