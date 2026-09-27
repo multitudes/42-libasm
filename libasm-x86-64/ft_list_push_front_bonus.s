@@ -42,3 +42,5 @@ ft_list_push_front:
 	pop	rbx
 	pop	rbp
 	ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

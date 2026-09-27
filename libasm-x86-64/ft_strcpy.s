@@ -22,3 +22,5 @@ ft_strcpy:
     jne .loop           ; If not null, repeat the loop.
 
     ret                 ; Return. 'rax' still holds the original destination address.
+
+section .note.GNU-stack noalloc noexec nowrite progbits

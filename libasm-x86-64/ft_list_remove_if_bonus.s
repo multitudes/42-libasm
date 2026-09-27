@@ -109,3 +109,5 @@ ft_list_remove_if:
 
 .quick_ret:
     ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

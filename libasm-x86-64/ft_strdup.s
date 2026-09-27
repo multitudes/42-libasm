@@ -56,3 +56,5 @@ ft_strdup:
 	pop	r15
 	ret
 
+
+section .note.GNU-stack noalloc noexec nowrite progbits

@@ -28,3 +28,5 @@ ft_strcmp:
     movzx ecx, dl
     sub eax, ecx        ; Return a negative, zero or positive difference
     ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

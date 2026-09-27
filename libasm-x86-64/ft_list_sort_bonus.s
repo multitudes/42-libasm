@@ -87,3 +87,5 @@
 
 	.quick_ret:
 		ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

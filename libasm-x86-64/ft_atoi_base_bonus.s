@@ -191,3 +191,5 @@ ft_atoi_base:
 	pop rsi
 	pop rbx
 	ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

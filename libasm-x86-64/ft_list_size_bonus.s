@@ -31,3 +31,5 @@ ft_list_size:
 .end:
 	ret
 
+
+section .note.GNU-stack noalloc noexec nowrite progbits

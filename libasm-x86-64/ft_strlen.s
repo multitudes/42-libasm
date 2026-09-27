@@ -20,3 +20,5 @@ ft_strlen:
 
 .end:
     ret                     ; Return the count in 'rax'
+
+section .note.GNU-stack noalloc noexec nowrite progbits
