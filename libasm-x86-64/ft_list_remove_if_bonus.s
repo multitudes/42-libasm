@@ -78,13 +78,20 @@ ft_list_remove_if:
     mov     rdi, qword [rbx]    ; rdi = current_node->data
     call    r15                 ; call free_fct(current->data)
 
-    mov     r10, qword [rbx + 8]; Cache current_node->next in scratch r10 before deletion
-    
     mov     rdi, rbx            ; rdi = current_node
     call    free wrt ..plt      ; free(current_node)
 
-    mov     rbx, r10            ; current_node = saved next node
-    jmp     .inner_loop         
+    ; The next node can't be kept in a scratch register: free may overwrite it.
+    ; Reload it from the link updated above instead.
+    test    r12, r12            ; Did we remove the head?
+    jz      .next_from_head
+    mov     rbx, qword [r12 + 8]; current_node = prev_node->next
+    jmp     .inner_loop
+
+.next_from_head:
+    mov     rax, qword [rsp]    ; rax = begin_list
+    mov     rbx, qword [rax]    ; current_node = *begin_list
+    jmp     .inner_loop
 
 .dont_remove:
     mov     r12, rbx            ; prev_node = current_node
