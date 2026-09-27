@@ -42,10 +42,6 @@ ft_strdup:
     call    ft_strcpy       ; This copies the string AND returns the pointer in RAX
     jmp     .ret
 
-.prepare_ret:
-    mov     rax, r14         ; Return the allocated string pointer
-    jmp     .ret
-
 .malloc_error:
     ; Set errno to ENOMEM (12)
     call    __errno_location wrt ..plt
