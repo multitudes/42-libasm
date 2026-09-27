@@ -14,8 +14,8 @@ ft_strcmp:
 
 .loop:
     mov al, [rdi]		; al is the lower 8 bits of rax
-    mov bl, [rsi]		; bl is the lower 8 bits of rbx
-    cmp al, bl          
+    mov dl, [rsi]		; dl is the lower 8 bits of rdx, a caller-saved register
+    cmp al, dl          
     jne .diff           
     test al, al         ; Is it the end of string?
     jz .diff            ; If both are terminators and are null the strings are equal
@@ -25,6 +25,6 @@ ft_strcmp:
 
 .diff:
     movzx eax, al
-    movzx ecx, bl
-    sub eax, ecx        ; This gives you aas return the negative/positive/zero
+    movzx ecx, dl
+    sub eax, ecx        ; Return a negative, zero or positive difference
     ret
