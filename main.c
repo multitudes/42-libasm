@@ -52,7 +52,9 @@ void test_write_read(void) {
     fd = open(test_file, O_RDONLY);
     if (fd != -1) {
       char buffer[100];
-      ssize_t r = ft_read(fd, buffer, 100);
+      ssize_t r = ft_read(fd, buffer, sizeof(buffer) - 1);
+      if (r >= 0)
+        buffer[r] = '\0';
       printf("  Read %zd bytes: '%s'\n", r, buffer);
       close(fd);
     }
