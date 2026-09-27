@@ -28,17 +28,18 @@ ft_read:
 
 .error:
     neg rax                     ; make it positive
-    mov rdi, rax                ; Temporarily save the positive errno liocation in rdi. rdi is a
-                                ; "caller-saved" register 
+    push rax                    ; Save the error code on the stack: rdi and the other
+                                ; caller-saved registers may be overwritten by the call.
+                                ; The push also realigns rsp to 16 bytes before the call.
 
 ; Get the memory address of the global `errno` variable from libc.
 ; The 'wrt ..plt' syntax is essential for PIE compatibility.
 
     call __errno_location wrt ..plt
-                                ; On return, rax now holds the address of errno.           
-    mov [rax], edi              ; Store the positive error code (from edi, the lower 32 bits
-                                ; of rdi) into the memory location pointed to by rax.
-                                ; We use edi since errno is an int.
+                                ; On return, rax now holds the address of errno.
+    pop rcx                     ; Get the error code back.
+    mov dword [rax], ecx        ; Store it in errno. We use ecx, the lower 32 bits
+                                ; of rcx, since errno is an int.
     mov rax, -1                 ; return -1
 .ret:
 	ret
